@@ -1,0 +1,312 @@
+"""
+Утилиты для обработки документов
+Оптимизированная версия с контролем памяти
+"""
+
+import re
+import gc
+from typing import List
+from pathlib import Path
+
+from pypdf import PdfReader
+
+from app.core.config import get_settings
+from app.core.logger import logger
+
+settings = get_settings()
+
+
+class DocumentProcessor:
+    """Процессор для обработки документов с оптимизацией памяти"""
+
+    def __init__(self):
+        self.chunk_size = settings.CHUNK_SIZE
+        self.chunk_overlap = settings.CHUNK_OVERLAP
+
+    def load_pdf(self, filepath: str) -> str:
+        """
+        Загрузить текст из PDF файла с оптимизацией памяти
+
+        Args:
+            filepath: Путь к PDF файлу
+
+        Returns:
+            str: Извлеченный текст
+        """
+        try:
+            reader = PdfReader(filepath)
+            text_parts = []
+
+            for page_num, page in enumerate(reader.pages):
+                page_text = page.extract_text()
+                if page_text:
+                    # Очищаем текст от лишних пробелов и переносов
+                    cleaned_text = self.clean_text(page_text)
+                    text_parts.append(cleaned_text)
+
+                # Очищаем память после каждых 10 страниц
+                if page_num > 0 and page_num % 10 == 0:
+                    gc.collect()
+
+            logger.info(f"Loaded {len(reader.pages)} pages from {filepath}")
+
+            # Собираем финальный текст
+            final_text = " ".join(text_parts)
+            del text_parts  # Освобождаем память
+            gc.collect()
+
+            return final_text
+
+        except Exception as e:
+            logger.error(f"Error loading PDF {filepath}: {e}")
+            raise
+
+    def load_text_file(self, filepath: str) -> str:
+        """
+        Загрузить текст из TXT или MD файла
+
+        Args:
+            filepath: Путь к текстовому файлу
+
+        Returns:
+            str: Извлеченный текст
+        """
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                text = f.read()
+
+            logger.info(f"Loaded text file {filepath}")
+            return self.clean_text(text)
+
+        except Exception as e:
+            logger.error(f"Error loading text file {filepath}: {e}")
+            raise
+
+    def process_text_file(self, filepath: str) -> List[str]:
+        """
+        Загрузить текстовый файл и разбить на фрагменты
+
+        Args:
+            filepath: Путь к текстовому файлу
+
+        Returns:
+            List[str]: Список фрагментов текста
+        """
+        text = self.load_text_file(filepath)
+        return self._chunk_text_improved(text)
+
+    def process_document(self, filepath: str) -> List[str]:
+        """
+        Универсальный метод для обработки документов разных типов
+
+        Args:
+            filepath: Путь к файлу
+
+        Returns:
+            List[str]: Список фрагментов текста
+        """
+        file_extension = Path(filepath).suffix.lower()
+
+        if file_extension == '.pdf':
+            return self.load_pdf_memory_efficient(filepath)
+        elif file_extension in ['.txt', '.md']:
+            return self.process_text_file(filepath)
+        else:
+            raise ValueError(f"Unsupported file type: {file_extension}")
+
+
+    def clean_text(self, text: str) -> str:
+        """Улучшенная очистка текста"""
+        # Сохраняем больше символов
+        text = re.sub(r'[^\w\s\.\,\!\?\-\:\(\)\"\«\»\—\-\+\=\@\#\$\%\&\*]', ' ', text)
+        # Нормализуем пробелы, но сохраняем структуру
+        text = re.sub(r'\s+', ' ', text)
+        return text.strip()
+
+    def load_pdf_memory_efficient(self, filepath: str) -> List[str]:
+        """
+        Загрузить PDF и сразу разбить на чанки без хранения полного текста в памяти
+
+        Args:
+            filepath: Путь к PDF файлу
+
+        Returns:
+            List[str]: Список чанков
+        """
+        try:
+            reader = PdfReader(filepath)
+            all_chunks = []
+
+            for page_num, page in enumerate(reader.pages):
+                page_text = page.extract_text()
+                if page_text:
+                    # Очищаем текст
+                    cleaned_text = re.sub(r'\s+', ' ', page_text).strip()
+
+                    # Сразу разбиваем на чанки
+                    page_chunks = self._chunk_text_improved(cleaned_text)
+                    all_chunks.extend(page_chunks)
+
+                    # Очищаем ссылки для помощи GC
+                    del cleaned_text
+                    del page_chunks
+
+                # Сборка мусора после каждых 5 страниц
+                if page_num > 0 and page_num % 5 == 0:
+                    gc.collect()
+
+            logger.info(f"Loaded and chunked {len(reader.pages)} pages from {filepath}")
+            return all_chunks
+
+        except Exception as e:
+            logger.error(f"Error in memory efficient PDF loading {filepath}: {e}")
+            raise
+
+    def _chunk_text_improved(self, text: str) -> List[str]:
+        """Улучшенное разбиение на чанки с учетом семантических границ"""
+        if not text or len(text.strip()) == 0:
+            return []
+
+        # Разбиваем на предложения с учетом различных разделителей
+        sentences = re.split(r'[.!?]+|\n\n|\n\s*\n', text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+
+        chunks = []
+        current_chunk = ""
+
+        for sentence in sentences:
+            # Если добавление предложения превышает лимит
+            if len(current_chunk) + len(sentence) > self.chunk_size:
+                if current_chunk:
+                    chunks.append(current_chunk)
+                    # Сохраняем перекрытие - последние N символов предыдущего чанка
+                    overlap_start = max(0, len(current_chunk) - self.chunk_overlap)
+                    current_chunk = current_chunk[overlap_start:] + " " + sentence
+                else:
+                    # Если одно предложение больше чанка, разбиваем его
+                    if len(sentence) > self.chunk_size:
+                        words = sentence.split()
+                        current_sentence = ""
+                        for word in words:
+                            if len(current_sentence) + len(word) + 1 <= self.chunk_size:
+                                current_sentence += " " + word if current_sentence else word
+                            else:
+                                if current_sentence:
+                                    chunks.append(current_sentence)
+                                current_sentence = word
+                        if current_sentence:
+                            current_chunk = current_sentence
+                    else:
+                        current_chunk = sentence
+            else:
+                current_chunk += " " + sentence if current_chunk else sentence
+
+        if current_chunk:
+            chunks.append(current_chunk)
+
+        return chunks
+
+    def chunk_text(self, text: str) -> List[str]:
+        """
+        Разбить текст на фрагменты максимум по 200 символов
+        (Совместимость со старым кодом)
+
+        Args:
+            text: Исходный текст
+
+        Returns:
+            List[str]: Список фрагментов
+        """
+        return self._chunk_text_optimized(text)
+
+    def process_pdf(self, filepath: str) -> List[str]:
+        """
+        Загрузить PDF и разбить на фрагменты с оптимизацией памяти
+
+        Args:
+            filepath: Путь к PDF файлу
+
+        Returns:
+            List[str]: Список фрагментов текста
+        """
+        # Используем оптимизированный метод
+        return self.load_pdf_memory_efficient(filepath)
+
+    def load_and_chunk_pdf(self, filepath: str) -> List[str]:
+        """
+        Загрузить PDF и разбить на фрагменты
+        (Алиас для обратной совместимости)
+
+        Args:
+            filepath: Путь к PDF файлу
+
+        Returns:
+            List[str]: Список фрагментов текста
+        """
+        return self.process_pdf(filepath)
+
+    def get_document_files(self, directory: str = None) -> List[str]:
+        """
+        Получить список PDF файлов в директории
+
+        Args:
+            directory: Путь к директории (по умолчанию из настроек)
+
+        Returns:
+            List[str]: Список путей к PDF файлам
+        """
+        if directory is None:
+            directory = settings.DOCUMENTS_DIR
+
+        directory_path = Path(directory)
+
+        if not directory_path.exists():
+            logger.warning(f"Documents directory not found: {directory}")
+            return []
+
+        pdf_files = []
+        for filename in directory_path.glob("*.pdf"):
+            pdf_files.append(str(filename))
+
+        logger.info(f"Found {len(pdf_files)} PDF files in {directory}")
+        return pdf_files
+
+    def estimate_processing_memory(self, filepath: str) -> dict:
+        """
+        Оценить использование памяти для обработки файла
+
+        Args:
+            filepath: Путь к PDF файлу
+
+        Returns:
+            dict: Оценка памяти
+        """
+        try:
+            import os
+            file_size = os.path.getsize(filepath) / 1024 / 1024  # MB
+
+            reader = PdfReader(filepath)
+            page_count = len(reader.pages)
+
+            # Эмпирическая оценка: текст обычно в 10-100 раз меньше размера PDF
+            estimated_text_size = file_size / 10  # Консервативная оценка
+
+            # Оценка памяти для эмбеддингов (предположим 768-мерные векторы float32)
+            chunks_estimate = (file_size * 1024 * 1024) / self.chunk_size  # Примерное количество чанков
+            embedding_memory = chunks_estimate * 768 * 4 / 1024 / 1024  # MB
+
+            return {
+                'file_size_mb': round(file_size, 2),
+                'page_count': page_count,
+                'estimated_text_size_mb': round(estimated_text_size, 2),
+                'estimated_chunks': int(chunks_estimate),
+                'estimated_embedding_memory_mb': round(embedding_memory, 2),
+                'total_estimated_memory_mb': round(estimated_text_size + embedding_memory, 2)
+            }
+
+        except Exception as e:
+            logger.error(f"Error estimating memory for {filepath}: {e}")
+            return {'error': str(e)}
+
+
+document_processor = DocumentProcessor()

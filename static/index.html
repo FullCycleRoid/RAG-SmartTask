@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartTask FAQ - Умный помощник</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .question-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .question-input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .question-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .ask-button {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .ask-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+
+        .ask-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .answer-section {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .answer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .answer-header h3 {
+            color: #333;
+        }
+
+        .badge {
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .cached {
+            background: #4caf50;
+            color: white;
+        }
+
+        .fresh {
+            background: #2196f3;
+            color: white;
+        }
+
+        .answer-text {
+            line-height: 1.6;
+            color: #444;
+            margin-bottom: 15px;
+        }
+
+        .metrics {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .metric {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .sources {
+            margin-top: 20px;
+        }
+
+        .sources h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .source-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .source-item strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .source-item small {
+            color: #999;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .examples {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .example-button {
+            padding: 12px;
+            background: #f0f0f0;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .example-button:hover {
+            background: #e8e8e8;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 SmartTask FAQ</h1>
+            <p>Задайте вопрос о SmartTask и получите мгновенный ответ</p>
+        </div>
+
+        <div class="content">
+            <form id="questionForm" class="question-form">
+                <input
+                    type="text"
+                    id="questionInput"
+                    class="question-input"
+                    placeholder="Например: Как создать задачу в SmartTask?"
+                    required
+                >
+                <button type="submit" class="ask-button" id="askButton">Спросить</button>
+            </form>
+
+            <div id="loadingSection" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Ищу ответ в базе знаний...</p>
+            </div>
+
+            <div id="answerSection" style="display: none;"></div>
+            <div id="errorSection" style="display: none;" class="error"></div>
+
+            <div class="examples">
+                <h4 style="grid-column: 1 / -1; color: #666;">Примеры вопросов:</h4>
+                <button class="example-button" onclick="askExample('Как создать задачу?')">
+                    💡 Как создать задачу?
+                </button>
+                <button class="example-button" onclick="askExample('Как настроить безопасность?')">
+                    🔒 Как настроить безопасность?
+                </button>
+                <button class="example-button" onclick="askExample('Как использовать API?')">
+                    🔧 Как использовать API?
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('questionForm');
+        const input = document.getElementById('questionInput');
+        const button = document.getElementById('askButton');
+        const loadingSection = document.getElementById('loadingSection');
+        const answerSection = document.getElementById('answerSection');
+        const errorSection = document.getElementById('errorSection');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await askQuestion(input.value);
+        });
+
+        function askExample(question) {
+            input.value = question;
+            askQuestion(question);
+        }
+
+        async function askQuestion(question) {
+            // Очистка предыдущих результатов
+            answerSection.style.display = 'none';
+            errorSection.style.display = 'none';
+            loadingSection.style.display = 'block';
+            button.disabled = true;
+
+            try {
+                const response = await fetch('/api/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ question }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Ошибка при получении ответа');
+                }
+
+                const data = await response.json();
+                displayAnswer(data);
+            } catch (error) {
+                displayError(error.message);
+            } finally {
+                loadingSection.style.display = 'none';
+                button.disabled = false;
+            }
+        }
+
+        function displayAnswer(data) {
+            const badgeClass = data.cached ? 'cached' : 'fresh';
+            const badgeText = data.cached ? '⚡ Из кэша' : '✨ Новый';
+
+            let sourcesHTML = '';
+            if (data.sources && data.sources.length > 0) {
+                sourcesHTML = `
+                    <div class="sources">
+                        <h4>📚 Источники:</h4>
+                        ${data.sources.map(source => `
+                            <div class="source-item">
+                                <strong>${source.document}</strong>
+                                <p>${source.content}</p>
+                                <small>Релевантность: ${(source.relevance * 100).toFixed(0)}%</small>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            answerSection.innerHTML = `
+                <div class="answer-section">
+                    <div class="answer-header">
+                        <h3>Ответ:</h3>
+                        <span class="badge ${badgeClass}">${badgeText}</span>
+                    </div>
+                    <div class="answer-text">${data.answer}</div>
+                    <div class="metrics">
+                        <div class="metric">⏱️ ${data.response_time}с</div>
+                        <div class="metric">🎯 ${data.tokens_used} токенов</div>
+                    </div>
+                    ${sourcesHTML}
+                </div>
+            `;
+            answerSection.style.display = 'block';
+        }
+
+        function displayError(message) {
+            errorSection.textContent = `❌ ${message}`;
+            errorSection.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

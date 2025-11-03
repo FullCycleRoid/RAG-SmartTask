@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  # PostgreSQL с pgvector
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: smarttask-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-smarttask}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-smarttask_password_2024}
+      POSTGRES_DB: ${POSTGRES_DB:-smarttask_faq}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-smarttask} -d ${POSTGRES_DB:-smarttask_faq}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - smarttask-network
+
+  # Redis для кэширования
+  redis:
+    image: redis:7-alpine
+    container_name: smarttask-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - redis_data:/data
+    networks:
+      - smarttask-network
+
+  # FastAPI приложение
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smarttask-api
+    ports:
+      - "8000:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-smarttask}:${POSTGRES_PASSWORD:-smarttask_password_2024}@postgres:5432/${POSTGRES_DB:-smarttask_faq}
+      - REDIS_URL=redis://redis:6379/0
+      - CACHE_TTL=${CACHE_TTL:-3600}
+      - LLM_MODEL=${LLM_MODEL:-claude-sonnet-4-5-20250929}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PYTHONPATH=/app
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-light}
+      - ENABLE_LANGSMITH=${ENABLE_LANGSMITH:-false}
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY}
+      - LANGCHAIN_PROJECT=${LANGCHAIN_PROJECT:-smarttask-faq}
+    volumes:
+      - ./data:/app/data
+      - ./app:/app/app
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
+      - ./tests:/app/tests
+      - ./pytest.ini:/app/pytest.ini
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - smarttask-network
+    command: >
+      sh -c "
+        echo 'Waiting for services to be ready...' &&
+        sleep 10 &&
+        echo 'Running migrations...' &&
+        alembic upgrade head &&
+        echo 'Loading documents...' &&
+        python -m app.scripts.load_documents &&
+        echo 'Starting API server...' &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  smarttask-network:
+    driver: bridge
