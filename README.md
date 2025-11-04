@@ -86,8 +86,7 @@ docker compose up -d
 ```bash
 
 # Запуск только evaluation тестов
-make test-evaluation:
-
+make test-evaluation
 ```
 
 #### Tests
