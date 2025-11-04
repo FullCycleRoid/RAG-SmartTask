@@ -16,7 +16,7 @@ from app.main import app
 
 # Настройки для тестов
 TEST_DATABASE_URL = (
-    "postgresql+asyncpg://smarttask:smarttask_password_2024@postgres:5432/smarttask_faq"
+    "postgresql+asyncpg://smarttask:smarttask_password_2024@postgres:5432/test_db"
 )
 
 
