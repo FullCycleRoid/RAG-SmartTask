@@ -9,8 +9,8 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import Column, DateTime, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 
-from app.core.database import Base
 from app.core.config import get_settings
+from app.core.database import Base
 
 settings = get_settings()
 

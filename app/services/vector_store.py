@@ -51,7 +51,9 @@ class VectorStore:
             logger.error(f"Error adding chunk via VectorStore: {e}")
             raise
 
-    async def search_similar(self, query_embedding: List[float], limit: int = 5) -> List[Tuple[DocumentChunk, float]]:
+    async def search_similar(
+        self, query_embedding: List[float], limit: int = 5
+    ) -> List[Tuple[DocumentChunk, float]]:
         """
         Поиск похожих фрагментов по векторному представлению
 
@@ -64,8 +66,7 @@ class VectorStore:
         """
         try:
             chunks_with_scores = await self.repository.search_similar_chunks(
-                embedding=query_embedding,
-                limit=limit
+                embedding=query_embedding, limit=limit
             )
             return chunks_with_scores
 

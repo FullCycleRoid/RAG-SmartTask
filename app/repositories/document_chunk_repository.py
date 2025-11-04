@@ -28,11 +28,11 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
         self.similarity_threshold = settings.VECTOR_SIMILARITY_THRESHOLD
 
     async def create_chunk(
-            self,
-            document_name: str,
-            content: str,
-            embedding: List[float],
-            chunk_index: int,
+        self,
+        document_name: str,
+        content: str,
+        embedding: List[float],
+        chunk_index: int,
     ) -> DocumentChunk:
         """
         Создать новый фрагмент документа
@@ -49,7 +49,9 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
         try:
             # Проверяем размер контента
             if len(content) > settings.CHUNK_SIZE + 100:  # Допуск 100 символов
-                logger.warning(f"Chunk {chunk_index} from {document_name} is large: {len(content)} chars")
+                logger.warning(
+                    f"Chunk {chunk_index} from {document_name} is large: {len(content)} chars"
+                )
 
             chunk = await self.create(
                 document_name=document_name,
@@ -57,7 +59,9 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
                 embedding=embedding,
                 chunk_index=chunk_index,
             )
-            logger.debug(f"Created chunk {chunk_index} from {document_name} ({len(content)} chars)")
+            logger.debug(
+                f"Created chunk {chunk_index} from {document_name} ({len(content)} chars)"
+            )
             return chunk
 
         except Exception as e:
@@ -91,7 +95,9 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
             logger.error(f"Error getting chunks by document: {e}")
             return []
 
-    async def search_similar_chunks(self, embedding: list, limit: int = 5) -> List[Tuple[DocumentChunk, float]]:
+    async def search_similar_chunks(
+        self, embedding: list, limit: int = 5
+    ) -> List[Tuple[DocumentChunk, float]]:
         """
         Поиск похожих фрагментов по векторному представлению
 
@@ -105,7 +111,8 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
         try:
             embedding_str = "[" + ",".join(str(float(x)) for x in embedding) + "]"
 
-            stmt = text("""
+            stmt = text(
+                """
                 SELECT 
                     id,
                     document_name,
@@ -117,15 +124,16 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
                 WHERE 1 - (embedding <=> :embedding) > :threshold
                 ORDER BY similarity DESC
                 LIMIT :limit
-            """)
+            """
+            )
 
             results = await self.db.execute(
                 stmt,
                 {
-                    'embedding': embedding_str,
-                    'threshold': self.similarity_threshold,
-                    'limit': limit
-                }
+                    "embedding": embedding_str,
+                    "threshold": self.similarity_threshold,
+                    "limit": limit,
+                },
             )
 
             # Преобразуем результаты в кортежи (DocumentChunk, similarity)
@@ -136,7 +144,7 @@ class DocumentChunkRepository(BaseRepository[DocumentChunk]):
                     document_name=row[1],
                     content=row[2],
                     chunk_index=row[3],
-                    created_at=row[4]
+                    created_at=row[4],
                 )
                 similar_chunks.append((chunk, float(row[5])))
             return similar_chunks

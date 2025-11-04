@@ -3,10 +3,10 @@
 Оптимизированная версия с контролем памяти
 """
 
-import re
 import gc
-from typing import List
+import re
 from pathlib import Path
+from typing import List
 
 from pypdf import PdfReader
 
@@ -72,7 +72,7 @@ class DocumentProcessor:
             str: Извлеченный текст
         """
         try:
-            with open(filepath, 'r', encoding='utf-8') as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 text = f.read()
 
             logger.info(f"Loaded text file {filepath}")
@@ -107,20 +107,19 @@ class DocumentProcessor:
         """
         file_extension = Path(filepath).suffix.lower()
 
-        if file_extension == '.pdf':
+        if file_extension == ".pdf":
             return self.load_pdf_memory_efficient(filepath)
-        elif file_extension in ['.txt', '.md']:
+        elif file_extension in [".txt", ".md"]:
             return self.process_text_file(filepath)
         else:
             raise ValueError(f"Unsupported file type: {file_extension}")
 
-
     def clean_text(self, text: str) -> str:
         """Улучшенная очистка текста"""
         # Сохраняем больше символов
-        text = re.sub(r'[^\w\s\.\,\!\?\-\:\(\)\"\«\»\—\-\+\=\@\#\$\%\&\*]', ' ', text)
+        text = re.sub(r"[^\w\s\.\,\!\?\-\:\(\)\"\«\»\—\-\+\=\@\#\$\%\&\*]", " ", text)
         # Нормализуем пробелы, но сохраняем структуру
-        text = re.sub(r'\s+', ' ', text)
+        text = re.sub(r"\s+", " ", text)
         return text.strip()
 
     def load_pdf_memory_efficient(self, filepath: str) -> List[str]:
@@ -141,7 +140,7 @@ class DocumentProcessor:
                 page_text = page.extract_text()
                 if page_text:
                     # Очищаем текст
-                    cleaned_text = re.sub(r'\s+', ' ', page_text).strip()
+                    cleaned_text = re.sub(r"\s+", " ", page_text).strip()
 
                     # Сразу разбиваем на чанки
                     page_chunks = self._chunk_text_improved(cleaned_text)
@@ -168,7 +167,7 @@ class DocumentProcessor:
             return []
 
         # Разбиваем на предложения с учетом различных разделителей
-        sentences = re.split(r'[.!?]+|\n\n|\n\s*\n', text)
+        sentences = re.split(r"[.!?]+|\n\n|\n\s*\n", text)
         sentences = [s.strip() for s in sentences if s.strip()]
 
         chunks = []
@@ -189,7 +188,9 @@ class DocumentProcessor:
                         current_sentence = ""
                         for word in words:
                             if len(current_sentence) + len(word) + 1 <= self.chunk_size:
-                                current_sentence += " " + word if current_sentence else word
+                                current_sentence += (
+                                    " " + word if current_sentence else word
+                                )
                             else:
                                 if current_sentence:
                                     chunks.append(current_sentence)
@@ -283,6 +284,7 @@ class DocumentProcessor:
         """
         try:
             import os
+
             file_size = os.path.getsize(filepath) / 1024 / 1024  # MB
 
             reader = PdfReader(filepath)
@@ -292,21 +294,25 @@ class DocumentProcessor:
             estimated_text_size = file_size / 10  # Консервативная оценка
 
             # Оценка памяти для эмбеддингов (предположим 768-мерные векторы float32)
-            chunks_estimate = (file_size * 1024 * 1024) / self.chunk_size  # Примерное количество чанков
+            chunks_estimate = (
+                file_size * 1024 * 1024
+            ) / self.chunk_size  # Примерное количество чанков
             embedding_memory = chunks_estimate * 768 * 4 / 1024 / 1024  # MB
 
             return {
-                'file_size_mb': round(file_size, 2),
-                'page_count': page_count,
-                'estimated_text_size_mb': round(estimated_text_size, 2),
-                'estimated_chunks': int(chunks_estimate),
-                'estimated_embedding_memory_mb': round(embedding_memory, 2),
-                'total_estimated_memory_mb': round(estimated_text_size + embedding_memory, 2)
+                "file_size_mb": round(file_size, 2),
+                "page_count": page_count,
+                "estimated_text_size_mb": round(estimated_text_size, 2),
+                "estimated_chunks": int(chunks_estimate),
+                "estimated_embedding_memory_mb": round(embedding_memory, 2),
+                "total_estimated_memory_mb": round(
+                    estimated_text_size + embedding_memory, 2
+                ),
             }
 
         except Exception as e:
             logger.error(f"Error estimating memory for {filepath}: {e}")
-            return {'error': str(e)}
+            return {"error": str(e)}
 
 
 document_processor = DocumentProcessor()

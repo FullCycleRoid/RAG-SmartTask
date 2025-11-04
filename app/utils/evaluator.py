@@ -4,14 +4,14 @@
 
 import asyncio
 import json
-from typing import Dict, List, Optional, Tuple
 from datetime import datetime
+from typing import Dict, List, Optional, Tuple
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logger import logger
-from app.services.llm import llm_service
 from app.repositories.query_repository import QueryRepository
+from app.services.llm import llm_service
 
 
 class RAGEvaluator:
@@ -26,7 +26,7 @@ class RAGEvaluator:
         question: str,
         answer: str,
         context: List[str],
-        ground_truth: Optional[str] = None
+        ground_truth: Optional[str] = None,
     ) -> Dict:
         """
         Оценить один ответ по нескольким метрикам
@@ -49,7 +49,7 @@ class RAGEvaluator:
             evaluation_result = await llm_service.create_chat_completion(
                 messages=messages,
                 system_prompt="Ты - эксперт по оценке качества ответов AI-систем.",
-                temperature=0.1
+                temperature=0.1,
             )
 
             return self._parse_evaluation_result(evaluation_result)
@@ -63,7 +63,7 @@ class RAGEvaluator:
         question: str,
         answer: str,
         context: List[str],
-        ground_truth: Optional[str] = None
+        ground_truth: Optional[str] = None,
     ) -> str:
         """Создать промпт для оценки"""
         context_text = "\n".join([f"{i+1}. {ctx}" for i, ctx in enumerate(context)])
@@ -122,16 +122,14 @@ class RAGEvaluator:
     def _parse_evaluation_result(self, evaluation_text: str) -> Dict:
         """Парсить результат оценки от LLM"""
         try:
-            # Ищем JSON в тексте ответа
-            start_idx = evaluation_text.find('{')
-            end_idx = evaluation_text.rfind('}') + 1
+            start_idx = evaluation_text.find("{")
+            end_idx = evaluation_text.rfind("}") + 1
 
             if start_idx != -1 and end_idx != 0:
                 json_str = evaluation_text[start_idx:end_idx]
                 result = json.loads(json_str)
 
-                # Валидация оценок
-                for key in ['relevance', 'accuracy', 'completeness', 'coherence']:
+                for key in ["relevance", "accuracy", "completeness", "coherence"]:
                     if key in result:
                         result[key] = max(1, min(5, int(result[key])))
 
@@ -149,14 +147,13 @@ class RAGEvaluator:
             "accuracy": 3,
             "completeness": 3,
             "coherence": 3,
-            "feedback": "Ошибка при оценке"
+            "feedback": "Ошибка при оценке",
         }
 
     async def evaluate_retrieval_quality(
         self,
         question: str,
         retrieved_chunks: List[Tuple[str, float]],
-        relevant_chunks: List[str] = None
     ) -> Dict:
         """
         Оценить качество поиска (retrieval)
@@ -164,7 +161,6 @@ class RAGEvaluator:
         Args:
             question: Вопрос
             retrieved_chunks: Найденные фрагменты с релевантностью
-            relevant_chunks: Релевантные фрагменты (для точной оценки)
 
         Returns:
             Dict: Метрики поиска
@@ -175,41 +171,35 @@ class RAGEvaluator:
                 "recall": 0.0,
                 "f1_score": 0.0,
                 "avg_similarity": 0.0,
-                "retrieved_count": 0
+                "retrieved_count": 0,
             }
 
-        # Вычисляем среднюю релевантность
         similarities = [score for _, score in retrieved_chunks]
         avg_similarity = sum(similarities) / len(similarities)
 
-        # Базовые метрики (можно улучшить с ground truth)
         precision = self._estimate_precision(question, retrieved_chunks)
 
         return {
             "precision": precision,
-            "recall": 0.0,  # Требует ground truth
-            "f1_score": 0.0,  # Требует ground truth
+            "recall": 0.0,
+            "f1_score": 0.0,
             "avg_similarity": avg_similarity,
-            "retrieved_count": len(retrieved_chunks)
+            "retrieved_count": len(retrieved_chunks),
         }
 
     def _estimate_precision(
-        self,
-        question: str,
-        retrieved_chunks: List[Tuple[str, float]]
+        self, question: str, retrieved_chunks: List[Tuple[str, float]]
     ) -> float:
         """Оценить precision на основе релевантности"""
-        # Считаем чанки с высокой релевантностью как "релевантные"
         high_similarity_threshold = 0.7
-        relevant_count = sum(1 for _, score in retrieved_chunks
-                           if score >= high_similarity_threshold)
+        relevant_count = sum(
+            1 for _, score in retrieved_chunks if score >= high_similarity_threshold
+        )
 
         return relevant_count / len(retrieved_chunks) if retrieved_chunks else 0.0
 
     async def run_comprehensive_evaluation(
-        self,
-        test_questions: List[Dict],
-        rag_pipeline
+        self, test_questions: List[Dict], rag_pipeline
     ) -> Dict:
         """
         Запустить комплексную оценку на наборе тестовых вопросов
@@ -221,7 +211,9 @@ class RAGEvaluator:
         Returns:
             Dict: Результаты оценки
         """
-        logger.info(f"Starting comprehensive evaluation with {len(test_questions)} questions")
+        logger.info(
+            f"Starting comprehensive evaluation with {len(test_questions)} questions"
+        )
 
         results = []
         total_metrics = {
@@ -229,7 +221,7 @@ class RAGEvaluator:
             "accuracy": 0.0,
             "completeness": 0.0,
             "coherence": 0.0,
-            "response_time": 0.0
+            "response_time": 0.0,
         }
 
         for i, test_case in enumerate(test_questions):
@@ -250,16 +242,18 @@ class RAGEvaluator:
                     question=question,
                     answer=result["answer"],
                     context=[source["content"] for source in result["sources"]],
-                    ground_truth=ground_truth
+                    ground_truth=ground_truth,
                 )
 
                 # Добавляем метрики производительности
-                evaluation.update({
-                    "question": question,
-                    "response_time": response_time,
-                    "tokens_used": result["tokens_used"],
-                    "cached": result["cached"]
-                })
+                evaluation.update(
+                    {
+                        "question": question,
+                        "response_time": response_time,
+                        "tokens_used": result["tokens_used"],
+                        "cached": result["cached"],
+                    }
+                )
 
                 results.append(evaluation)
 
@@ -268,27 +262,33 @@ class RAGEvaluator:
                     total_metrics[metric] += evaluation.get(metric, 3)
                 total_metrics["response_time"] += response_time
 
-                logger.info(f"Evaluated question {i+1}/{len(test_questions)}: {evaluation}")
+                logger.info(
+                    f"Evaluated question {i+1}/{len(test_questions)}: {evaluation}"
+                )
 
             except Exception as e:
                 logger.error(f"Error evaluating question '{question}': {e}")
                 # Добавляем запись об ошибке
-                results.append({
-                    "question": question,
-                    "error": str(e),
-                    "relevance": 1,
-                    "accuracy": 1,
-                    "completeness": 1,
-                    "coherence": 1,
-                    "response_time": 0.0
-                })
+                results.append(
+                    {
+                        "question": question,
+                        "error": str(e),
+                        "relevance": 1,
+                        "accuracy": 1,
+                        "completeness": 1,
+                        "coherence": 1,
+                        "response_time": 0.0,
+                    }
+                )
 
         # Вычисляем средние значения
         avg_metrics = {}
         successful_evaluations = len([r for r in results if "error" not in r])
 
         for metric, total in total_metrics.items():
-            avg_metrics[f"avg_{metric}"] = total / successful_evaluations if successful_evaluations > 0 else 0.0
+            avg_metrics[f"avg_{metric}"] = (
+                total / successful_evaluations if successful_evaluations > 0 else 0.0
+            )
 
         return {
             "timestamp": datetime.utcnow().isoformat(),
@@ -296,5 +296,5 @@ class RAGEvaluator:
             "successful_evaluations": successful_evaluations,
             "failed_evaluations": len(test_questions) - successful_evaluations,
             "average_metrics": avg_metrics,
-            "detailed_results": results
+            "detailed_results": results,
         }

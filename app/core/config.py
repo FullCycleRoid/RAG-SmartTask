@@ -9,6 +9,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     """Настройки приложения"""
+
     # ====================================
     # API Keys
     # ====================================
@@ -116,7 +117,7 @@ class Settings(BaseSettings):
             "light": 384,  # all-MiniLM-L6-v2
             "medium": 768,  # all-mpnet-base-v2
             "multilingual": 384,  # paraphrase-multilingual-MiniLM-L12-v2
-            "russian": 1024  # intfloat/multilingual-e5-large
+            "russian": 1024,  # intfloat/multilingual-e5-large
         }
 
         return dimension_map.get(self.EMBEDDING_MODEL, self.EMBEDDING_DIM)
@@ -131,10 +132,12 @@ class Settings(BaseSettings):
             "embedding_model": self.EMBEDDING_MODEL,
             "embedding_dimension": self.get_embedding_dimension(),
             "langsmith_enabled": self.is_langsmith_enabled(),
-            "langsmith_project": self.LANGCHAIN_PROJECT if self.is_langsmith_enabled() else None,
+            "langsmith_project": self.LANGCHAIN_PROJECT
+            if self.is_langsmith_enabled()
+            else None,
             "pdf_loader": self.PDF_LOADER_TYPE,
             "chunk_size": self.CHUNK_SIZE,
-            "chunk_overlap": self.CHUNK_OVERLAP
+            "chunk_overlap": self.CHUNK_OVERLAP,
         }
 
 

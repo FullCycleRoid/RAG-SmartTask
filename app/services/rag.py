@@ -2,15 +2,15 @@
 RAG Pipeline
 """
 
+import asyncio
 import json
 import time
-import asyncio
-from typing import Dict, AsyncGenerator
+from typing import AsyncGenerator, Dict
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.logger import logger
 from app.core.database import async_session_maker
+from app.core.logger import logger
 from app.repositories.query_repository import QueryRepository
 from app.schemas.query import Source
 from app.services.cache import cache_manager
@@ -22,12 +22,6 @@ class RAGPipeline:
     """RAG пайплайн для обработки вопросов"""
 
     def __init__(self, db: AsyncSession):
-        """
-        Инициализация RAG пайплайна
-
-        Args:
-            db: Асинхронная сессия БД
-        """
         self.db = db
         self.vector_store = VectorStore(db)
         self.query_repository = QueryRepository(db)
@@ -36,8 +30,6 @@ class RAGPipeline:
 
     async def process_question(self, question: str, session_id: str = None) -> Dict:
         """
-        ОПТИМИЗИРОВАННАЯ обработка вопроса пользователя
-
         Args:
             question: Вопрос пользователя
             session_id: ID сессии пользователя
@@ -52,7 +44,7 @@ class RAGPipeline:
             # 1. Проверяем кэш
             cache_start = time.time()
             cached_answer = await self.cache.get(question)
-            timings['cache_check'] = time.time() - cache_start
+            timings["cache_check"] = time.time() - cache_start
 
             if cached_answer:
                 logger.info(f"Cache hit for question: {question[:50]}...")
@@ -65,14 +57,14 @@ class RAGPipeline:
             embedding_start = time.time()
             logger.info(f"Processing question: {question[:50]}...")
             query_embedding = await self.llm.generate_embedding(question)
-            timings['embedding'] = time.time() - embedding_start
+            timings["embedding"] = time.time() - embedding_start
 
             # 3. Ищем релевантные фрагменты документов
             search_start = time.time()
             similar_chunks = await self.vector_store.search_similar(
-                query_embedding=query_embedding, limit=3
+                query_embedding=query_embedding, limit=5
             )
-            timings['search'] = time.time() - search_start
+            timings["search"] = time.time() - search_start
 
             # 4. Формируем контекст для LLM
             llm_context_start = time.time()
@@ -81,17 +73,21 @@ class RAGPipeline:
 
             for chunk, similarity in similar_chunks:
                 context.append(chunk.content)
-                sources.append(Source(
-                    document=chunk.document_name,
-                    content=chunk.content[:150] + "..." if len(chunk.content) > 150 else chunk.content,
-                    relevance=float(similarity),
-                ))
-            timings['llm_context'] = time.time() - llm_context_start
+                sources.append(
+                    Source(
+                        document=chunk.document_name,
+                        content=chunk.content[:150] + "..."
+                        if len(chunk.content) > 150
+                        else chunk.content,
+                        relevance=float(similarity),
+                    )
+                )
+            timings["llm_context"] = time.time() - llm_context_start
 
             # 5. Генерируем ответ через LLM
             llm_generate_start = time.time()
             answer, tokens_used = await self.llm.generate_answer(question, context)
-            timings['llm_generate'] = time.time() - llm_generate_start
+            timings["llm_generate"] = time.time() - llm_generate_start
 
             # 6. Вычисляем время ответа
             response_time = round(time.time() - start_time, 2)
@@ -112,10 +108,10 @@ class RAGPipeline:
                         "tokens_used": tokens_used,
                         "response_time": response_time,
                         "cached": False,
-                    }
+                    },
                 )
             )
-            timings['save'] = time.time() - save_start
+            timings["save"] = time.time() - save_start
 
             # 8. Формируем результат
             result = {
@@ -127,7 +123,7 @@ class RAGPipeline:
             }
 
             total_time = time.time() - start_time
-            timings['total'] = total_time
+            timings["total"] = total_time
 
             # Логируем тайминги
             timing_log = " | ".join([f"{k}: {v:.2f}s" for k, v in timings.items()])
@@ -147,7 +143,7 @@ class RAGPipeline:
         response_time: float,
         sources: list,
         session_id: str,
-        result: dict
+        result: dict,
     ):
         """Сохранение в БД и кэш в фоновом режиме"""
         try:
@@ -178,7 +174,9 @@ class RAGPipeline:
 
             total_tokens = sum(q.tokens_used for q in all_queries)
             total_response_time = sum(q.response_time for q in all_queries)
-            avg_response_time = total_response_time / len(all_queries) if all_queries else 0
+            avg_response_time = (
+                total_response_time / len(all_queries) if all_queries else 0
+            )
 
             document_count = await self.vector_store.get_document_count()
 

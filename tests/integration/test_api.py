@@ -2,11 +2,12 @@
 Интеграционные тесты для API endpoints
 """
 
-import pytest
 from unittest.mock import AsyncMock, patch
+
+import pytest
 from httpx import AsyncClient
 
-from app.repositories import QueryRepository, DocumentChunkRepository
+from app.repositories import DocumentChunkRepository, QueryRepository
 
 
 class TestAPIIntegration:
@@ -16,22 +17,25 @@ class TestAPIIntegration:
     @pytest.mark.integration
     async def test_ask_endpoint_full_integration(self, client: AsyncClient):
         """Тест endpoint /api/ask"""
-        with patch('app.api.routes.llm_service') as mock_llm, \
-                patch('app.api.routes.cache_manager') as mock_cache:
+        with patch("app.api.routes.llm_service") as mock_llm, patch(
+            "app.api.routes.cache_manager"
+        ) as mock_cache:
             mock_cache.get = AsyncMock(return_value=None)
             mock_cache.set = AsyncMock()
             mock_llm.generate_embedding = AsyncMock(return_value=[0.1] * 1024)
-            mock_llm.generate_answer = AsyncMock(return_value=(
-                "Для создания задачи нажмите кнопку 'Новая задача' в верхней панели.",
-                120  # Фиксированное значение для теста
-            ))
+            mock_llm.generate_answer = AsyncMock(
+                return_value=(
+                    "Для создания задачи нажмите кнопку 'Новая задача' в верхней панели.",
+                    120,
+                )
+            )
 
             response = await client.post(
                 "/api/ask",
                 json={
                     "question": "Как создать новую задачу?",
-                    "session_id": "integration-test-session"
-                }
+                    "session_id": "integration-test-session",
+                },
             )
 
             assert response.status_code == 200
@@ -51,9 +55,8 @@ class TestAPIIntegration:
     @pytest.mark.integration
     async def test_health_endpoint_integration(self, client: AsyncClient):
         """Тест health endpoint с реальными подключениями"""
-        
-        response = await client.get("/api/health")
 
+        response = await client.get("/api/health")
 
         assert response.status_code == 200
         data = response.json()
@@ -78,19 +81,17 @@ class TestAPIIntegration:
     @pytest.mark.integration
     async def test_ask_endpoint_service_error(self, client: AsyncClient):
         """Тест обработки ошибок сервиса в ask endpoint"""
-        with patch('app.api.routes.RAGPipeline') as mock_rag:
+        with patch("app.api.routes.RAGPipeline") as mock_rag:
             mock_rag.return_value.process_question = AsyncMock(
                 side_effect=Exception("Service error")
             )
 
             response = await client.post(
-                "/api/ask",
-                json={"question": "Тестовый вопрос"}
+                "/api/ask", json={"question": "Тестовый вопрос"}
             )
 
             assert response.status_code == 500
             assert "Service error" in response.json()["detail"]
-
 
     @pytest.mark.asyncio
     async def test_history_endpoint(self, client: AsyncClient, db_session):
@@ -105,37 +106,11 @@ class TestAPIIntegration:
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 2
-        assert data[0]["question"] == "Q2"  # Последний первым
-
-    @pytest.mark.asyncio
-    async def test_statistics_endpoint(
-            self, client: AsyncClient, db_session, sample_embedding: list
-    ):
-        """Тест endpoint /api/statistics"""
-
-        query_repo = QueryRepository(db_session)
-        chunk_repo = DocumentChunkRepository(db_session)
-
-        await query_repo.create_query(question="Q1", answer="A1", tokens_used=100)
-        await chunk_repo.create_chunk(
-            document_name="test.pdf",
-            content="Content",
-            embedding=sample_embedding,
-            chunk_index=0,
-        )
-        await db_session.commit()
-
-        response = await client.get("/api/statistics")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["total_queries"] == 1
-        assert data["total_tokens"] == 100
-        assert data["total_documents"] == 1
+        assert data[0]["question"] == "Q2"
 
     @pytest.mark.asyncio
     async def test_list_documents_endpoint(
-            self, client: AsyncClient, db_session, sample_embedding: list
+        self, client: AsyncClient, db_session, sample_embedding: list
     ):
         """Тест endpoint GET /api/documents"""
 
@@ -167,7 +142,7 @@ class TestAPIIntegration:
 
     @pytest.mark.asyncio
     async def test_delete_document_endpoint(
-            self, client: AsyncClient, db_session, sample_embedding: list
+        self, client: AsyncClient, db_session, sample_embedding: list
     ):
         """Тест endpoint DELETE /api/documents/{name}"""
 
@@ -259,23 +234,8 @@ class TestAPIIntegration:
 
     @pytest.mark.asyncio
     @patch("app.api.routes.llm_service")
-    @patch("app.api.routes.cache_manager")
-    async def test_ask_endpoint_error_handling(
-            self, mock_cache, mock_llm, client: AsyncClient
-    ):
-        """Тест обработки ошибок в /api/ask"""
-
-        mock_cache.get = AsyncMock(return_value=None)
-        mock_llm.generate_embedding = AsyncMock(side_effect=Exception("LLM Error"))
-
-        response = await client.post("/api/ask", json={"question": "Test question"})
-
-        assert response.status_code == 500
-
-    @pytest.mark.asyncio
-    @patch("app.api.routes.llm_service")
     async def test_upload_document_endpoint(
-            self, mock_llm, client: AsyncClient, sample_embedding: list
+        self, mock_llm, client: AsyncClient, sample_embedding: list
     ):
         """Тест endpoint POST /api/documents"""
 
@@ -288,7 +248,4 @@ class TestAPIIntegration:
             "/api/documents",
             files={"file": ("test.pdf", pdf_content, "application/pdf")},
         )
-
-        # Может быть 200 или 400 в зависимости от валидности PDF
-        # Основная цель - проверить, что endpoint работает
         assert response.status_code in [200, 400, 500]

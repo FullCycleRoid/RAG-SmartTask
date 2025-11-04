@@ -6,7 +6,7 @@ test:
 
 # Запуск только тестов оценки
 test-evaluation:
-	docker compose exec api pytest tests/services/test_evaluation.py -v
+	docker compose exec api pytest tests/evaluations -v
 
 # Запуск unit тестов
 test-unit:
@@ -14,7 +14,7 @@ test-unit:
 
 # Запуск интеграционных тестов
 test-integration:
-	docker compose exec api pytest tests/integration/ tests/services/ -v -k "integration"
+	docker compose exec api pytest tests/integration/ -v -k "integration"
 
 # Покрытие кода
 coverage:

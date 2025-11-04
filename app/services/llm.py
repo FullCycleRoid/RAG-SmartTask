@@ -21,9 +21,7 @@ class LLMService:
     """
 
     def __init__(
-        self,
-        embedding_model: str = "russian",
-        enable_langsmith: bool = False
+        self, embedding_model: str = "russian", enable_langsmith: bool = False
     ):
         """
         Инициализация сервиса
@@ -38,13 +36,12 @@ class LLMService:
             max_tokens=settings.MAX_RESPONSE_TOKENS,
             temperature=settings.LLM_TEMPERATURE,
             timeout=30,
-            max_retries=2
+            max_retries=2,
         )
 
         # Инициализация локальных эмбедингов
         self.embedding_service = create_langchain_embedding_service(
-            model_type=embedding_model,
-            device="cpu"
+            model_type=embedding_model, device="cpu"
         )
 
         self.embedding_dimension = self.embedding_service.embedding_dimension
@@ -96,8 +93,7 @@ class LLMService:
 
             start_time = time.time()
             response = await self.llm.ainvoke(
-                langchain_messages,
-                config={"temperature": temperature}
+                langchain_messages, config={"temperature": temperature}
             )
             elapsed_time = time.time() - start_time
 
@@ -108,7 +104,9 @@ class LLMService:
             logger.error(f"Error calling Claude API via LangChain: {e}")
             raise
 
-    async def generate_answer(self, question: str, context: List[str]) -> Tuple[str, int]:
+    async def generate_answer(
+        self, question: str, context: List[str]
+    ) -> Tuple[str, int]:
         """
         Оптимизированная генерация ответа на вопрос с контекстом
 
@@ -137,31 +135,39 @@ class LLMService:
             
             Вопрос: {question}
             
+            ИНСТРУКЦИИ:
+            1. Используй ВСЮ релевантную информацию из контекста
+            2. Структурируй ответ логично (используй списки, если нужно)
+            3. Включи все важные детали (цифры, названия, шаги)
+            4. Если в контексте есть дополнительная полезная информация - упомяни её
+            5. Если информации недостаточно - честно скажи об этом
+            
             Краткий ответ:"""
 
-            messages = [
-                {"role": "user", "content": prompt}
-            ]
+            messages = [{"role": "user", "content": prompt}]
 
             start_time = time.time()
             answer = await self.create_chat_completion(
-                messages=messages,
-                system_prompt=system_prompt,
-                temperature=0.3
+                messages=messages, system_prompt=system_prompt, temperature=0.3
             )
             llm_time = time.time() - start_time
 
             if len(answer) > 500:
                 answer = answer[:497] + "..."
 
-            tokens_used = len(answer) // 3 + len(prompt) // 3  # Более точный расчет токенов для русского языка
+            tokens_used = (
+                len(answer) // 3 + len(prompt) // 3
+            )  # Более точный расчет токенов для русского языка
 
             logger.info(f"Answer generated in {llm_time:.2f}s, tokens: {tokens_used}")
             return answer, tokens_used
 
         except Exception as e:
             logger.error(f"Error generating answer: {e}")
-            return "Извините, не удалось обработать запрос. Пожалуйста, попробуйте переформулировать вопрос.", 0
+            return (
+                "Извините, не удалось обработать запрос. Пожалуйста, попробуйте переформулировать вопрос.",
+                0,
+            )
 
     @traceable(name="generate_embedding")
     async def generate_embedding(self, text: str) -> List[float]:
@@ -174,17 +180,6 @@ class LLMService:
             logger.error(f"Error generating embedding: {e}")
             return [0.0] * self.embedding_dimension
 
-    @traceable(name="generate_batch_embeddings")
-    async def generate_batch_embeddings(self, texts: List[str]) -> List[List[float]]:
-        """
-        Генерация эмбедингов для пакета текстов
-        """
-        try:
-            return await self.embedding_service.generate_batch_embeddings(texts)
-        except Exception as e:
-            logger.error(f"Error in batch embedding: {e}")
-            return [[0.0] * self.embedding_dimension for _ in texts]
-
     def get_service_info(self) -> dict:
         """Получить информацию о сервисе"""
         return {
@@ -192,13 +187,15 @@ class LLMService:
                 "provider": "langchain-anthropic",
                 "model": settings.CLAUDE_MODEL,
                 "max_tokens": settings.MAX_RESPONSE_TOKENS,
-                "temperature": settings.LLM_TEMPERATURE
+                "temperature": settings.LLM_TEMPERATURE,
             },
             "embeddings": self.embedding_service.get_model_info(),
             "langsmith": {
                 "enabled": self.enable_langsmith,
-                "project": os.getenv("LANGCHAIN_PROJECT", "smarttask-faq") if self.enable_langsmith else None
-            }
+                "project": os.getenv("LANGCHAIN_PROJECT", "smarttask-faq")
+                if self.enable_langsmith
+                else None,
+            },
         }
 
 
@@ -206,6 +203,5 @@ embedding_model = os.getenv("EMBEDDING_MODEL", "light")
 enable_langsmith = os.getenv("ENABLE_LANGSMITH", "false").lower() == "true"
 
 llm_service = LLMService(
-    embedding_model=embedding_model,
-    enable_langsmith=enable_langsmith
+    embedding_model=embedding_model, enable_langsmith=enable_langsmith
 )

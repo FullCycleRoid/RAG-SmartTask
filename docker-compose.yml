@@ -75,16 +75,15 @@ services:
       - smarttask-network
     command: >
       sh -c "
-        echo 'Waiting for services to be ready...' &&
-        sleep 10 &&
-        echo 'Running migrations...' &&
-        alembic upgrade head &&
-        echo 'Loading documents...' &&
-        python -m app.scripts.load_documents &&
-        echo 'Starting API server...' &&
-        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-      "
-
+          echo 'Waiting for services to be ready...' &&
+          sleep 10 &&
+          echo 'Running migrations...' &&
+          alembic upgrade head &&
+          echo 'Migrations completed, loading documents...' &&
+          python -m app.scripts.load_documents &&
+          echo 'Starting API server...' &&
+          uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+        "
 volumes:
   postgres_data:
   redis_data:

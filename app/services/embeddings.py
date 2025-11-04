@@ -3,8 +3,8 @@ LangChain-based Embedding Service
 Локальные эмбединги без необходимости API ключей
 """
 
-from typing import List
 from pathlib import Path
+from typing import List
 
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.embeddings import Embeddings
@@ -21,7 +21,7 @@ class LangChainEmbeddingService:
         self,
         model_name: str = "all-MiniLM-L6-v2",
         device: str = "cpu",
-        cache_folder: str = "./data/models"
+        cache_folder: str = "./data/models",
     ):
         """
         Инициализация сервиса
@@ -36,26 +36,24 @@ class LangChainEmbeddingService:
         self.cache_folder = Path(cache_folder)
         self.cache_folder.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"Initializing LangChain Embedding Service with model: {model_name}")
+        logger.info(
+            f"Initializing LangChain Embedding Service with model: {model_name}"
+        )
 
         try:
             # Инициализация HuggingFace Embeddings через LangChain
             self.embeddings: Embeddings = HuggingFaceEmbeddings(
                 model_name=model_name,
-                model_kwargs={
-                    'device': device,
-                    'trust_remote_code': True
-                },
-                encode_kwargs={
-                    'normalize_embeddings': True,
-                    'batch_size': 32
-                }
+                model_kwargs={"device": device, "trust_remote_code": True},
+                encode_kwargs={"normalize_embeddings": True, "batch_size": 32},
             )
 
             # Определяем размерность эмбедингов
             self._determine_embedding_dimension()
 
-            logger.info(f"✅ LangChain Embeddings initialized: {model_name} (dim={self.embedding_dimension})")
+            logger.info(
+                f"✅ LangChain Embeddings initialized: {model_name} (dim={self.embedding_dimension})"
+            )
 
         except Exception as e:
             logger.error(f"Failed to initialize embeddings: {e}")
@@ -63,7 +61,6 @@ class LangChainEmbeddingService:
 
     def _determine_embedding_dimension(self):
         """Определить размерность эмбедингов"""
-        # Известные размерности для популярных моделей
         dimension_map = {
             "all-MiniLM-L6-v2": 384,
             "all-mpnet-base-v2": 768,
@@ -98,38 +95,12 @@ class LangChainEmbeddingService:
             return [0.0] * self.embedding_dimension
 
         try:
-            # LangChain's embed_query - синхронный метод
             embedding = self.embeddings.embed_query(text)
             return embedding
 
         except Exception as e:
             logger.error(f"Error generating embedding: {e}")
             return [0.0] * self.embedding_dimension
-
-    async def generate_batch_embeddings(self, texts: List[str]) -> List[List[float]]:
-        """
-        Генерация эмбедингов для пакета текстов
-
-        Args:
-            texts: Список текстов
-
-        Returns:
-            List[List[float]]: Список векторных представлений
-        """
-        if not texts:
-            return []
-
-        try:
-            # Фильтруем пустые тексты
-            valid_texts = [text if text and text.strip() else " " for text in texts]
-
-            # LangChain's embed_documents - эффективная батч-обработка
-            embeddings = self.embeddings.embed_documents(valid_texts)
-            return embeddings
-
-        except Exception as e:
-            logger.error(f"Error in batch embedding: {e}")
-            return [[0.0] * self.embedding_dimension for _ in texts]
 
     def get_model_info(self) -> dict:
         """Получить информацию о модели"""
@@ -140,44 +111,42 @@ class LangChainEmbeddingService:
             "device": self.device,
             "cache_folder": str(self.cache_folder),
             "requires_api_key": False,
-            "local": True
+            "local": True,
         }
 
 
 EMBEDDING_MODELS = {
-    # Легкая модель для быстрой работы (РЕКОМЕНДУЕТСЯ)
+    # Легкая модель для быстрой работы
     "light": {
         "model_name": "all-MiniLM-L6-v2",
         "dimension": 384,
-        "description": "Быстрая и легкая модель для большинства задач"
+        "description": "Быстрая и легкая модель для большинства задач",
     },
-
     # Средняя модель для лучшего качества
     "medium": {
         "model_name": "all-mpnet-base-v2",
         "dimension": 768,
-        "description": "Сбалансированное качество и скорость"
+        "description": "Сбалансированное качество и скорость",
     },
     #
     # # Мультиязычная модель для русского и английского
     "multilingual": {
         "model_name": "paraphrase-multilingual-MiniLM-L12-v2",
         "dimension": 384,
-        "description": "Поддержка множества языков, включая русский"
+        "description": "Поддержка множества языков, включая русский",
     },
     #
     # # Большая русскоязычная модель
     "russian": {
         "model_name": "intfloat/multilingual-e5-large",
         "dimension": 1024,
-        "description": "Отличная поддержка русского языка"
-    }
+        "description": "Отличная поддержка русского языка",
+    },
 }
 
 
 def create_langchain_embedding_service(
-    model_type: str = "light",
-    device: str = "cpu"
+    model_type: str = "light", device: str = "cpu"
 ) -> LangChainEmbeddingService:
     """
     Фабрика для создания embedding service
@@ -197,6 +166,5 @@ def create_langchain_embedding_service(
     logger.info(f"Creating embedding service: {model_config['description']}")
 
     return LangChainEmbeddingService(
-        model_name=model_config["model_name"],
-        device=device
+        model_name=model_config["model_name"], device=device
     )

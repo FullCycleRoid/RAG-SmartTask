@@ -7,6 +7,7 @@ import asyncio
 import os
 import sys
 from pathlib import Path
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -16,7 +17,6 @@ from app.repositories.document_chunk_repository import DocumentChunkRepository
 from app.services.llm import llm_service
 from app.utils.document_processor import DocumentProcessor
 
-
 # Добавляем корневую директорию в путь
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -24,7 +24,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 settings = get_settings()
 
 
-async def load_document(file_path: str, db: AsyncSession, chunk_repo: DocumentChunkRepository) -> int:
+async def load_document(
+    file_path: str, db: AsyncSession, chunk_repo: DocumentChunkRepository
+) -> int:
     """
     Загрузить один документ в векторную БД через репозиторий
 
@@ -48,7 +50,9 @@ async def load_document(file_path: str, db: AsyncSession, chunk_repo: DocumentCh
             logger.warning(f"No chunks extracted from {file_name}")
             return 0
 
-        logger.info(f"Extracted {len(chunks)} chunks from {file_name} (max {settings.CHUNK_SIZE} chars each)")
+        logger.info(
+            f"Extracted {len(chunks)} chunks from {file_name} (max {settings.CHUNK_SIZE} chars each)"
+        )
 
         # Проверяем размер чанков
         for i, chunk in enumerate(chunks):
@@ -58,7 +62,9 @@ async def load_document(file_path: str, db: AsyncSession, chunk_repo: DocumentCh
         # 2. Удаляем старые фрагменты документа (если есть)
         existing_chunks = await chunk_repo.get_by_document_name(file_name)
         if existing_chunks:
-            logger.info(f"Removing {len(existing_chunks)} existing chunks for {file_name}")
+            logger.info(
+                f"Removing {len(existing_chunks)} existing chunks for {file_name}"
+            )
             await chunk_repo.delete_by_document_name(file_name)
 
         # 3. Создаем эмбеддинги и сохраняем через репозиторий
@@ -143,10 +149,14 @@ async def load_all_documents(documents_dir: str = None) -> dict:
                 if chunks_count > 0:
                     total_chunks += chunks_count
                     processed_files += 1
-                    logger.info(f"✅ Successfully processed {pdf_file.name}: {chunks_count} chunks")
+                    logger.info(
+                        f"✅ Successfully processed {pdf_file.name}: {chunks_count} chunks"
+                    )
                 else:
                     failed_files.append(pdf_file.name)
-                    logger.error(f"❌ Failed to process {pdf_file.name}: no chunks created")
+                    logger.error(
+                        f"❌ Failed to process {pdf_file.name}: no chunks created"
+                    )
 
             except Exception as e:
                 logger.error(f"❌ Failed to process {pdf_file.name}: {e}")

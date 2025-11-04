@@ -19,8 +19,12 @@ from app.core.logger import logger
 from app.repositories.document_chunk_repository import DocumentChunkRepository
 from app.repositories.query_repository import QueryRepository
 from app.schemas.common import HealthResponse
-from app.schemas.query import (DocumentUploadResponse, QueryHistory,
-                               QueryRequest, QueryResponse)
+from app.schemas.query import (
+    DocumentUploadResponse,
+    QueryHistory,
+    QueryRequest,
+    QueryResponse,
+)
 from app.services.cache import cache_manager
 from app.services.llm import llm_service
 from app.services.rag import RAGPipeline
@@ -53,7 +57,7 @@ async def ask_question(request: QueryRequest, db: AsyncSession = Depends(get_db)
 
 @router.post("/documents", response_model=DocumentUploadResponse)
 async def upload_document(
-        file: UploadFile = File(...), db: AsyncSession = Depends(get_db)
+    file: UploadFile = File(...), db: AsyncSession = Depends(get_db)
 ):
     """
     Загрузить и обработать документ (PDF, TXT, MD)
@@ -62,13 +66,13 @@ async def upload_document(
         if not file.filename:
             raise HTTPException(status_code=400, detail="Filename is required")
 
-        allowed_extensions = ['.pdf', '.txt', '.md']
+        allowed_extensions = [".pdf", ".txt", ".md"]
         file_ext = Path(file.filename).suffix.lower()
 
         if file_ext not in allowed_extensions:
             raise HTTPException(
                 status_code=400,
-                detail=f"Only {', '.join(allowed_extensions)} files are supported"
+                detail=f"Only {', '.join(allowed_extensions)} files are supported",
             )
 
         # Сохраняем файл во временную директорию
@@ -82,7 +86,6 @@ async def upload_document(
             chunk_repository = DocumentChunkRepository(db)
             vector_store = VectorStore(db)
 
-            # Обрабатываем документ
             processor = DocumentProcessor()
             chunks = processor.process_document(tmp_path)
 
@@ -226,7 +229,6 @@ async def list_documents(db: AsyncSession = Depends(get_db)):
         chunk_repository = DocumentChunkRepository(db)
         document_names = await chunk_repository.get_unique_document_names()
 
-        # Получаем количество чанков для каждого документа
         documents = []
         for name in document_names:
             chunks_count = await chunk_repository.get_chunks_count_by_document(name)
@@ -247,7 +249,6 @@ async def delete_document(document_name: str, db: AsyncSession = Depends(get_db)
     try:
         vector_store = VectorStore(db)
 
-        # Удаляем через сервис (который использует репозиторий)
         deleted_count = await vector_store.delete_document_chunks(document_name)
 
         if deleted_count == 0:
@@ -255,7 +256,6 @@ async def delete_document(document_name: str, db: AsyncSession = Depends(get_db)
 
         await db.commit()
 
-        # Очищаем кэш
         await cache_manager.clear()
 
         logger.info(f"Deleted document: {document_name}")
