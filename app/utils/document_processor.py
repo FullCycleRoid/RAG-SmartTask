@@ -1,6 +1,6 @@
 """
 Утилиты для обработки документов
-Оптимизированная версия с контролем памяти
+Оптимизированная версия с контролем памяти и RecursiveCharacterTextSplitter
 """
 
 import gc
@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 from typing import List
 
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pypdf import PdfReader
 
 from app.core.config import get_settings
@@ -17,11 +18,29 @@ settings = get_settings()
 
 
 class DocumentProcessor:
-    """Процессор для обработки документов с оптимизацией памяти"""
+    """Процессор для обработки документов с оптимизацией памяти и улучшенным чанкированием"""
 
     def __init__(self):
         self.chunk_size = settings.CHUNK_SIZE
         self.chunk_overlap = settings.CHUNK_OVERLAP
+
+        self.text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=self.chunk_size,
+            chunk_overlap=self.chunk_overlap,
+            length_function=len,
+            separators=[
+                "\n\n",  # Двойной перенос строки (абзацы)
+                "\n",    # Одиночный перенос строки
+                ". ",     # Точка с пробелом (предложения)
+                "! ",     # Восклицательный знак с пробелом
+                "? ",     # Вопросительный знак с пробелом
+                "; ",     # Точка с запятой с пробелом
+                ": ",     # Двоеточие с пробелом
+                ", ",     # Запятая с пробелом
+                " ",      # Пробел (слова)
+                ""        # Пустая строка (символы)
+            ]
+        )
 
     def load_pdf(self, filepath: str) -> str:
         """
@@ -51,7 +70,7 @@ class DocumentProcessor:
             logger.info(f"Loaded {len(reader.pages)} pages from {filepath}")
 
             # Собираем финальный текст
-            final_text = " ".join(text_parts)
+            final_text = "\n\n".join(text_parts)  # Используем двойные переносы для разделения абзацев
             del text_parts  # Освобождаем память
             gc.collect()
 
@@ -84,7 +103,7 @@ class DocumentProcessor:
 
     def process_text_file(self, filepath: str) -> List[str]:
         """
-        Загрузить текстовый файл и разбить на фрагменты
+        Загрузить текстовый файл и разбить на фрагменты с помощью RecursiveCharacterTextSplitter
 
         Args:
             filepath: Путь к текстовому файлу
@@ -93,7 +112,7 @@ class DocumentProcessor:
             List[str]: Список фрагментов текста
         """
         text = self.load_text_file(filepath)
-        return self._chunk_text_improved(text)
+        return self._chunk_with_text_splitter(text)
 
     def process_document(self, filepath: str) -> List[str]:
         """
@@ -116,11 +135,75 @@ class DocumentProcessor:
 
     def clean_text(self, text: str) -> str:
         """Улучшенная очистка текста"""
-        # Сохраняем больше символов
+        # Сохраняем больше символов для лучшего разбиения
         text = re.sub(r"[^\w\s\.\,\!\?\-\:\(\)\"\«\»\—\-\+\=\@\#\$\%\&\*]", " ", text)
         # Нормализуем пробелы, но сохраняем структуру
         text = re.sub(r"\s+", " ", text)
         return text.strip()
+
+    def _chunk_with_text_splitter(self, text: str) -> List[str]:
+        """
+        Разбить текст на чанки с помощью RecursiveCharacterTextSplitter
+
+        Args:
+            text: Исходный текст
+
+        Returns:
+            List[str]: Список чанков
+        """
+        if not text or len(text.strip()) == 0:
+            return []
+
+        try:
+            chunks = self.text_splitter.split_text(text)
+            logger.debug(f"Split text into {len(chunks)} chunks using RecursiveCharacterTextSplitter")
+
+            # Логируем информацию о чанках для отладки
+            for i, chunk in enumerate(chunks[:3]):  # Первые 3 чанка
+                logger.debug(f"Chunk {i+1}: {len(chunk)} chars, preview: {chunk[:100]}...")
+
+            if len(chunks) > 3:
+                logger.debug(f"... and {len(chunks) - 3} more chunks")
+
+            return chunks
+
+        except Exception as e:
+            logger.error(f"Error splitting text with RecursiveCharacterTextSplitter: {e}")
+            # Fallback на базовое разбиение
+            return self._chunk_text_fallback(text)
+
+    def _chunk_text_fallback(self, text: str) -> List[str]:
+        """
+        Фолбэк метод для разбиения текста (используется при ошибках text splitter)
+
+        Args:
+            text: Исходный текст
+
+        Returns:
+            List[str]: Список чанков
+        """
+        if not text:
+            return []
+
+        # Простое разбиение по предложениям с ограничением длины
+        sentences = re.split(r'[.!?]+', text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+
+        chunks = []
+        current_chunk = ""
+
+        for sentence in sentences:
+            if len(current_chunk) + len(sentence) <= self.chunk_size:
+                current_chunk += " " + sentence if current_chunk else sentence
+            else:
+                if current_chunk:
+                    chunks.append(current_chunk)
+                current_chunk = sentence
+
+        if current_chunk:
+            chunks.append(current_chunk)
+
+        return chunks
 
     def load_pdf_memory_efficient(self, filepath: str) -> List[str]:
         """
@@ -142,8 +225,8 @@ class DocumentProcessor:
                     # Очищаем текст
                     cleaned_text = re.sub(r"\s+", " ", page_text).strip()
 
-                    # Сразу разбиваем на чанки
-                    page_chunks = self._chunk_text_improved(cleaned_text)
+                    # Сразу разбиваем на чанки с помощью text splitter
+                    page_chunks = self._chunk_with_text_splitter(cleaned_text)
                     all_chunks.extend(page_chunks)
 
                     # Очищаем ссылки для помощи GC
@@ -161,56 +244,9 @@ class DocumentProcessor:
             logger.error(f"Error in memory efficient PDF loading {filepath}: {e}")
             raise
 
-    def _chunk_text_improved(self, text: str) -> List[str]:
-        """Улучшенное разбиение на чанки с учетом семантических границ"""
-        if not text or len(text.strip()) == 0:
-            return []
-
-        # Разбиваем на предложения с учетом различных разделителей
-        sentences = re.split(r"[.!?]+|\n\n|\n\s*\n", text)
-        sentences = [s.strip() for s in sentences if s.strip()]
-
-        chunks = []
-        current_chunk = ""
-
-        for sentence in sentences:
-            # Если добавление предложения превышает лимит
-            if len(current_chunk) + len(sentence) > self.chunk_size:
-                if current_chunk:
-                    chunks.append(current_chunk)
-                    # Сохраняем перекрытие - последние N символов предыдущего чанка
-                    overlap_start = max(0, len(current_chunk) - self.chunk_overlap)
-                    current_chunk = current_chunk[overlap_start:] + " " + sentence
-                else:
-                    # Если одно предложение больше чанка, разбиваем его
-                    if len(sentence) > self.chunk_size:
-                        words = sentence.split()
-                        current_sentence = ""
-                        for word in words:
-                            if len(current_sentence) + len(word) + 1 <= self.chunk_size:
-                                current_sentence += (
-                                    " " + word if current_sentence else word
-                                )
-                            else:
-                                if current_sentence:
-                                    chunks.append(current_sentence)
-                                current_sentence = word
-                        if current_sentence:
-                            current_chunk = current_sentence
-                    else:
-                        current_chunk = sentence
-            else:
-                current_chunk += " " + sentence if current_chunk else sentence
-
-        if current_chunk:
-            chunks.append(current_chunk)
-
-        return chunks
-
     def chunk_text(self, text: str) -> List[str]:
         """
-        Разбить текст на фрагменты максимум по 200 символов
-        (Совместимость со старым кодом)
+        Разбить текст на фрагменты (совместимость со старым кодом)
 
         Args:
             text: Исходный текст
@@ -218,7 +254,7 @@ class DocumentProcessor:
         Returns:
             List[str]: Список фрагментов
         """
-        return self._chunk_text_optimized(text)
+        return self._chunk_with_text_splitter(text)
 
     def process_pdf(self, filepath: str) -> List[str]:
         """
@@ -230,13 +266,11 @@ class DocumentProcessor:
         Returns:
             List[str]: Список фрагментов текста
         """
-        # Используем оптимизированный метод
         return self.load_pdf_memory_efficient(filepath)
 
     def load_and_chunk_pdf(self, filepath: str) -> List[str]:
         """
-        Загрузить PDF и разбить на фрагменты
-        (Алиас для обратной совместимости)
+        Загрузить PDF и разбить на фрагменты (Алиас для обратной совместимости)
 
         Args:
             filepath: Путь к PDF файлу
@@ -272,47 +306,19 @@ class DocumentProcessor:
         logger.info(f"Found {len(pdf_files)} PDF files in {directory}")
         return pdf_files
 
-    def estimate_processing_memory(self, filepath: str) -> dict:
+    def get_splitter_info(self) -> dict:
         """
-        Оценить использование памяти для обработки файла
-
-        Args:
-            filepath: Путь к PDF файлу
+        Получить информацию о text splitter
 
         Returns:
-            dict: Оценка памяти
+            dict: Информация о конфигурации
         """
-        try:
-            import os
-
-            file_size = os.path.getsize(filepath) / 1024 / 1024  # MB
-
-            reader = PdfReader(filepath)
-            page_count = len(reader.pages)
-
-            # Эмпирическая оценка: текст обычно в 10-100 раз меньше размера PDF
-            estimated_text_size = file_size / 10  # Консервативная оценка
-
-            # Оценка памяти для эмбеддингов (предположим 768-мерные векторы float32)
-            chunks_estimate = (
-                file_size * 1024 * 1024
-            ) / self.chunk_size  # Примерное количество чанков
-            embedding_memory = chunks_estimate * 1536 * 4 / 1024 / 1024  # MB
-
-            return {
-                "file_size_mb": round(file_size, 2),
-                "page_count": page_count,
-                "estimated_text_size_mb": round(estimated_text_size, 2),
-                "estimated_chunks": int(chunks_estimate),
-                "estimated_embedding_memory_mb": round(embedding_memory, 2),
-                "total_estimated_memory_mb": round(
-                    estimated_text_size + embedding_memory, 2
-                ),
-            }
-
-        except Exception as e:
-            logger.error(f"Error estimating memory for {filepath}: {e}")
-            return {"error": str(e)}
+        return {
+            "splitter_type": "RecursiveCharacterTextSplitter",
+            "chunk_size": self.chunk_size,
+            "chunk_overlap": self.chunk_overlap,
+            "separators": self.text_splitter._separators,
+        }
 
 
 document_processor = DocumentProcessor()

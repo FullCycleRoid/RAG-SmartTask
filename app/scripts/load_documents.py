@@ -59,13 +59,13 @@ async def load_document(
             if len(chunk) > settings.CHUNK_SIZE + 50:
                 logger.warning(f"Chunk {i} is too large: {len(chunk)} chars")
 
-        # 2. Удаляем старые фрагменты документа (если есть)
-        existing_chunks = await chunk_repo.get_by_document_name(file_name)
-        if existing_chunks:
-            logger.info(
-                f"Removing {len(existing_chunks)} existing chunks for {file_name}"
-            )
-            await chunk_repo.delete_by_document_name(file_name)
+        # # 2. Удаляем старые фрагменты документа (если есть)
+        # existing_chunks = await chunk_repo.get_by_document_name(file_name)
+        # if existing_chunks:
+        #     logger.info(
+        #         f"Removing {len(existing_chunks)} existing chunks for {file_name}"
+        #     )
+        #     await chunk_repo.delete_by_document_name(file_name)
 
         # 3. Создаем эмбеддинги и сохраняем через репозиторий
         created_count = 0
