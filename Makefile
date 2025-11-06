@@ -4,6 +4,10 @@
 test:
 	docker compose exec api pytest tests/ -v
 
+# Запуск только скрипта оценки
+test-langsmith:
+	docker compose exec api python -m app.scripts.run_langsmith_evaluation
+
 # Запуск только тестов оценки
 test-evaluation:
 	docker compose exec api pytest tests/evaluations -v

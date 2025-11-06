@@ -6,6 +6,7 @@
 - Docker & Docker Compose
 - Anthropic API ключ
 - OPENAI API ключ
+- LANGCHAIN API ключ для Eval тестов
 
 ### Установка за 5 минут
 
@@ -18,6 +19,7 @@ cd smarttask-faq
 cp .env.example .env
 Добавьте в .env: ANTHROPIC_API_KEY=your-key-here
 Добавьте в .env: OPENAI_API_KEY=your-key-here
+Добавьте в .env: LANGCHAIN_API_KEY=your-key-here для Eval тестов
 
 # 3. Запустите сервисы
 docker-compose up --build
@@ -87,7 +89,10 @@ docker compose up -d
 #### EVAL tests
 ```bash
 
-# Запуск только evaluation тестов
+# Запуск langsmith evaluation тестов
+ make test-langsmith
+
+# Запуск кастомных evaluation тестов
 make test-evaluation
 ```
 
