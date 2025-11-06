@@ -297,7 +297,7 @@ class DocumentProcessor:
             chunks_estimate = (
                 file_size * 1024 * 1024
             ) / self.chunk_size  # Примерное количество чанков
-            embedding_memory = chunks_estimate * 768 * 4 / 1024 / 1024  # MB
+            embedding_memory = chunks_estimate * 1536 * 4 / 1024 / 1024  # MB
 
             return {
                 "file_size_mb": round(file_size, 2),

@@ -93,4 +93,4 @@ def sample_answer() -> str:
 @pytest.fixture
 def sample_embedding() -> list:
     """Пример вектора эмбеддинга"""
-    return [0.1] * 1024
+    return [0.1] * 1536

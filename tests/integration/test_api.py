@@ -22,7 +22,7 @@ class TestAPIIntegration:
         ) as mock_cache:
             mock_cache.get = AsyncMock(return_value=None)
             mock_cache.set = AsyncMock()
-            mock_llm.generate_embedding = AsyncMock(return_value=[0.1] * 1024)
+            mock_llm.generate_embedding = AsyncMock(return_value=[0.1] * 1536)
             mock_llm.generate_answer = AsyncMock(
                 return_value=(
                     "Для создания задачи нажмите кнопку 'Новая задача' в верхней панели.",

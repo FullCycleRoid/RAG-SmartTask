@@ -15,19 +15,17 @@ redis==5.0.1
 
 # AI/ML
 anthropic>=0.39.0,<1
+openai>=1.0.0
 numpy>=1.26.2
 
 # LangChain Core
 langchain==0.3.11
 langchain-core>=0.3.24
 langchain-community==0.3.10
-langchain-anthropic==0.3.0  # Anthropic integration for LangChain
+langchain-anthropic==0.3.0
 
 # LangSmith
 langsmith==0.1.147
-
-# Local Embeddings - HuggingFace (NO API keys needed!)
-sentence-transformers==3.3.1
 
 # Document processing
 pypdf==3.17.1
@@ -51,4 +49,3 @@ httpx==0.25.2
 black==23.11.0
 isort==5.12.0
 flake8==6.1.0
-

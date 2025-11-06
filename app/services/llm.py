@@ -1,5 +1,5 @@
 """
-Сервис для работы с языковыми моделями (Claude API + LangChain) с оптимизацией скорости
+Сервис для работы с языковыми моделями (Claude API + OpenAI Embeddings) с оптимизацией скорости
 """
 
 import os
@@ -12,22 +12,22 @@ from langsmith import traceable
 
 from app.core.config import settings
 from app.core.logger import logger
-from app.services.embeddings import create_langchain_embedding_service
+from app.services.embeddings import create_openai_embedding_service
 
 
 class LLMService:
     """
-    Сервис для работы с LLM через LangChain и локальными эмбедингами
+    Сервис для работы с LLM через LangChain и OpenAI эмбеддингами
     """
 
     def __init__(
-        self, embedding_model: str = "russian", enable_langsmith: bool = False
+        self,
+        enable_langsmith: bool = False
     ):
         """
         Инициализация сервиса
 
         Args:
-            embedding_model: Тип embedding модели ('light', 'medium', 'multilingual')
             enable_langsmith: Включить LangSmith трейсинг
         """
         self.llm = ChatAnthropic(
@@ -39,11 +39,8 @@ class LLMService:
             max_retries=2,
         )
 
-        # Инициализация локальных эмбедингов
-        self.embedding_service = create_langchain_embedding_service(
-            model_type=embedding_model, device="cpu"
-        )
-
+        # Инициализация OpenAI эмбеддингов
+        self.embedding_service = create_openai_embedding_service()
         self.embedding_dimension = self.embedding_service.embedding_dimension
 
         # LangSmith настройки (опционально)
@@ -54,7 +51,7 @@ class LLMService:
         logger.info(
             f"✅ LLM Service initialized: "
             f"Claude={settings.CLAUDE_MODEL}, "
-            f"Embeddings={embedding_model} (dim={self.embedding_dimension}), "
+            f"Embeddings=OpenAI {settings.OPENAI_EMBEDDING_MODEL} (dim={self.embedding_dimension}), "
             f"LangSmith={'enabled' if enable_langsmith else 'disabled'}"
         )
 
@@ -172,12 +169,12 @@ class LLMService:
     @traceable(name="generate_embedding")
     async def generate_embedding(self, text: str) -> List[float]:
         """
-        Генерировать эмбеддинг для текста используя локальную модель
+        Генерировать эмбеддинг для текста используя OpenAI API
         """
         try:
             return await self.embedding_service.generate_embedding(text)
         except Exception as e:
-            logger.error(f"Error generating embedding: {e}")
+            logger.error(f"Error generating OpenAI embedding: {e}")
             return [0.0] * self.embedding_dimension
 
     def get_service_info(self) -> dict:
@@ -187,21 +184,17 @@ class LLMService:
                 "provider": "langchain-anthropic",
                 "model": settings.CLAUDE_MODEL,
                 "max_tokens": settings.MAX_RESPONSE_TOKENS,
-                "temperature": settings.LLM_TEMPERATURE,
+                "temperature": settings.LLM_TEMPERATURE
             },
             "embeddings": self.embedding_service.get_model_info(),
             "langsmith": {
                 "enabled": self.enable_langsmith,
                 "project": os.getenv("LANGCHAIN_PROJECT", "smarttask-faq")
-                if self.enable_langsmith
-                else None,
+                if self.enable_langsmith else None
             },
         }
 
 
-embedding_model = os.getenv("EMBEDDING_MODEL", "light")
 enable_langsmith = os.getenv("ENABLE_LANGSMITH", "false").lower() == "true"
 
-llm_service = LLMService(
-    embedding_model=embedding_model, enable_langsmith=enable_langsmith
-)
+llm_service = LLMService(enable_langsmith=enable_langsmith)

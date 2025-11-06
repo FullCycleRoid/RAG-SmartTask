@@ -23,7 +23,7 @@ class DocumentChunk(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     document_name = Column(String(255), nullable=False, index=True)
     content = Column(Text, nullable=False)
-    embedding = Column(Vector(1024))
+    embedding = Column(Vector(1536))
     chunk_index = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 

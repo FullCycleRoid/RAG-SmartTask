@@ -5,6 +5,7 @@
 ### Требования
 - Docker & Docker Compose
 - Anthropic API ключ
+- OPENAI API ключ
 
 ### Установка за 5 минут
 
@@ -16,6 +17,7 @@ cd smarttask-faq
 # 2. Настройте API ключ
 cp .env.example .env
 Добавьте в .env: ANTHROPIC_API_KEY=your-key-here
+Добавьте в .env: OPENAI_API_KEY=your-key-here
 
 # 3. Запустите сервисы
 docker-compose up --build

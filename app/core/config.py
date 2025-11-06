@@ -1,5 +1,5 @@
 """
-Конфигурация приложения с поддержкой LangChain
+Конфигурация приложения с поддержкой OpenAI Embeddings
 """
 
 from functools import lru_cache
@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     # API Keys
     # ====================================
     ANTHROPIC_API_KEY: str
+    OPENAI_API_KEY: str  # Добавляем OpenAI API ключ
 
     # ====================================
     # Database
@@ -52,13 +53,10 @@ class Settings(BaseSettings):
     LLM_TEMPERATURE: float = 0.7
 
     # ====================================
-    # LangChain Embeddings Settings
+    # OpenAI Embeddings Settings
     # ====================================
-    # Модель эмбедингов: light, medium, multilingual, russian
-    EMBEDDING_MODEL: str = "russian"
-
-    # Размерность эмбедингов (автоопределяется из модели, но можно переопределить)
-    EMBEDDING_DIM: int = 1024
+    OPENAI_EMBEDDING_MODEL: str = "text-embedding-ada-002"
+    EMBEDDING_DIM: int = 1536  # Размерность для text-embedding-ada-002
 
     # Старое название для обратной совместимости
     @property
@@ -108,19 +106,12 @@ class Settings(BaseSettings):
 
     def get_embedding_dimension(self) -> int:
         """
-        Получить размерность эмбедингов на основе модели
+        Получить размерность эмбеддингов
 
         Returns:
-            int: Размерность вектора
+            int: Размерность вектора (1536 для text-embedding-ada-002)
         """
-        dimension_map = {
-            "light": 384,  # all-MiniLM-L6-v2
-            "medium": 768,  # all-mpnet-base-v2
-            "multilingual": 384,  # paraphrase-multilingual-MiniLM-L12-v2
-            "russian": 1024,  # intfloat/multilingual-e5-large
-        }
-
-        return dimension_map.get(self.EMBEDDING_MODEL, self.EMBEDDING_DIM)
+        return self.EMBEDDING_DIM
 
     def is_langsmith_enabled(self) -> bool:
         """Проверка, включен ли LangSmith"""
@@ -129,7 +120,7 @@ class Settings(BaseSettings):
     def get_langchain_config(self) -> dict:
         """Получить конфигурацию LangChain"""
         return {
-            "embedding_model": self.EMBEDDING_MODEL,
+            "embedding_model": self.OPENAI_EMBEDDING_MODEL,
             "embedding_dimension": self.get_embedding_dimension(),
             "langsmith_enabled": self.is_langsmith_enabled(),
             "langsmith_project": self.LANGCHAIN_PROJECT

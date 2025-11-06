@@ -48,6 +48,7 @@ services:
       - "8000:8000"
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-smarttask}:${POSTGRES_PASSWORD:-smarttask_password_2024}@postgres:5432/${POSTGRES_DB:-smarttask_faq}
       - REDIS_URL=redis://redis:6379/0
       - CACHE_TTL=${CACHE_TTL:-3600}

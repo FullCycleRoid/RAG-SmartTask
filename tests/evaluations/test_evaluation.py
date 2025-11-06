@@ -482,8 +482,8 @@ class TestRAGEvaluatorIntegration:
         db_session: AsyncSession,
     ):
         """Тест полного цикла оценки"""
-        # Используем правильную размерность 1024
-        mock_llm_service.generate_embedding = AsyncMock(return_value=[0.1] * 1024)
+        # Используем правильную размерность 1536
+        mock_llm_service.generate_embedding = AsyncMock(return_value=[0.1] * 1536)
         mock_llm_service.generate_answer = AsyncMock(return_value=("Test answer", 100))
         mock_llm_service.create_chat_completion = AsyncMock(
             return_value=json.dumps(
@@ -505,7 +505,7 @@ class TestRAGEvaluatorIntegration:
         await chunk_repo.create_chunk(
             document_name="test.pdf",
             content="Test content for evaluation",
-            embedding=[0.1] * 1024,  # 1024 измерения
+            embedding=[0.1] * 1536,  # 1536 измерения
             chunk_index=0,
         )
         await db_session.commit()
@@ -535,7 +535,7 @@ class TestRAGEvaluatorIntegration:
         db_session: AsyncSession,
     ):
         """Тест оценки с реальным RAG pipeline"""
-        mock_llm_service.generate_embedding = AsyncMock(return_value=[0.1] * 1024)
+        mock_llm_service.generate_embedding = AsyncMock(return_value=[0.1] * 1536)
         mock_llm_service.generate_answer = AsyncMock(return_value=("Real answer", 120))
         mock_llm_service.create_chat_completion = AsyncMock(
             return_value=json.dumps(
@@ -556,7 +556,7 @@ class TestRAGEvaluatorIntegration:
         await chunk_repo.create_chunk(
             document_name="integration_test.pdf",
             content="Content for integration testing",
-            embedding=[0.1] * 1024,  # 1024 измерения
+            embedding=[0.1] * 1536,  # 1536 измерения
             chunk_index=0,
         )
         await db_session.commit()
