@@ -76,9 +76,11 @@ class RAGPipeline:
                 sources.append(
                     Source(
                         document=chunk.document_name,
-                        content=chunk.content[:150] + "..."
-                        if len(chunk.content) > 150
-                        else chunk.content,
+                        content=(
+                            chunk.content[:150] + "..."
+                            if len(chunk.content) > 150
+                            else chunk.content
+                        ),
                         relevance=float(similarity),
                     )
                 )

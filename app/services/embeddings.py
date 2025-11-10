@@ -59,13 +59,12 @@ class OpenAIEmbeddingService:
             # Ограничиваем длину текста для эмбеддингов (OpenAI лимит ~8192 токена)
             max_length = 8000  # Безопасный лимит символов
             if len(text) > max_length:
-                logger.warning(f"Text too long for embedding, truncating to {max_length} characters")
+                logger.warning(
+                    f"Text too long for embedding, truncating to {max_length} characters"
+                )
                 text = text[:max_length]
 
-            response = await self.client.embeddings.create(
-                model=self.model,
-                input=text
-            )
+            response = await self.client.embeddings.create(model=self.model, input=text)
 
             embedding = response.data[0].embedding
             logger.debug(f"Generated embedding with dimension: {len(embedding)}")
@@ -104,8 +103,7 @@ class OpenAIEmbeddingService:
                     processed_texts.append(text)
 
             response = await self.client.embeddings.create(
-                model=self.model,
-                input=processed_texts
+                model=self.model, input=processed_texts
             )
 
             embeddings = [item.embedding for item in response.data]
@@ -128,8 +126,7 @@ class OpenAIEmbeddingService:
 
 
 def create_openai_embedding_service(
-    model: str = None,
-    api_key: str = None
+    model: str = None, api_key: str = None
 ) -> OpenAIEmbeddingService:
     """
     Фабрика для создания embedding service

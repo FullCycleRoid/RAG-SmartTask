@@ -10,8 +10,8 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from app.evaluation.langsmith_evaluator import langsmith_evaluator
 from app.core.logger import logger
+from app.evaluation.langsmith_evaluator import langsmith_evaluator
 
 
 async def main():
@@ -26,19 +26,23 @@ async def main():
         stats = await langsmith_evaluator.get_evaluation_stats(results)
 
         # Print results
-        print("\n" + "="*50)
+        print("\n" + "=" * 50)
         print("LANGSMITH EVALUATION RESULTS")
-        print("="*50)
+        print("=" * 50)
 
         if "error" in stats:
             print(f"Error: {stats['error']}")
         else:
             print(f"Total examples: {stats.get('total_examples', 0)}")
-            print(f"Correctness Accuracy: {stats.get('correctness', {}).get('accuracy', 0):.2%}")
-            print(f"Relevance Accuracy: {stats.get('relevance', {}).get('accuracy', 0):.2%}")
+            print(
+                f"Correctness Accuracy: {stats.get('correctness', {}).get('accuracy', 0):.2%}"
+            )
+            print(
+                f"Relevance Accuracy: {stats.get('relevance', {}).get('accuracy', 0):.2%}"
+            )
             print(f"Evaluation timestamp: {stats.get('timestamp', 'Unknown')}")
 
-        print("="*50)
+        print("=" * 50)
 
         # Save detailed results
         output_file = Path("evaluation_results.json")

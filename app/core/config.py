@@ -123,9 +123,9 @@ class Settings(BaseSettings):
             "embedding_model": self.OPENAI_EMBEDDING_MODEL,
             "embedding_dimension": self.get_embedding_dimension(),
             "langsmith_enabled": self.is_langsmith_enabled(),
-            "langsmith_project": self.LANGCHAIN_PROJECT
-            if self.is_langsmith_enabled()
-            else None,
+            "langsmith_project": (
+                self.LANGCHAIN_PROJECT if self.is_langsmith_enabled() else None
+            ),
             "pdf_loader": self.PDF_LOADER_TYPE,
             "chunk_size": self.CHUNK_SIZE,
             "chunk_overlap": self.CHUNK_OVERLAP,

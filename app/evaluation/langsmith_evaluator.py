@@ -2,21 +2,19 @@
 LangSmith-based RAG Evaluation System - FIXED VERSION
 """
 
-import asyncio
-import json
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from typing import Dict
 
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.prompts import ChatPromptTemplate
 from langsmith import Client
 from langsmith.evaluation import aevaluate
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.messages import HumanMessage, SystemMessage
 from typing_extensions import Annotated, TypedDict
 
 from app.core.config import get_settings
 from app.core.logger import logger
-from app.services.rag import RAGPipeline
 from app.services.llm import llm_service
+from app.services.rag import RAGPipeline
 
 
 class CorrectnessGrade(TypedDict):
@@ -77,7 +75,9 @@ class LangSmithEvaluator:
                 },
             },
             {
-                "inputs": {"question": "Можно ли интегрировать SmartTask с другими системами?"},
+                "inputs": {
+                    "question": "Можно ли интегрировать SmartTask с другими системами?"
+                },
                 "outputs": {
                     "answer": "Да, SmartTask поддерживает интеграцию через REST API и webhooks с популярными системами like Slack, Jira, Google Calendar."
                 },
@@ -89,7 +89,7 @@ class LangSmithEvaluator:
             if not self.client.has_dataset(dataset_name=self.dataset_name):
                 dataset = self.client.create_dataset(
                     dataset_name=self.dataset_name,
-                    description="SmartTask FAQ evaluation dataset"
+                    description="SmartTask FAQ evaluation dataset",
                 )
 
                 # Add examples to dataset
@@ -97,10 +97,12 @@ class LangSmithEvaluator:
                     self.client.create_example(
                         inputs=example["inputs"],
                         outputs=example["outputs"],
-                        dataset_id=dataset.id
+                        dataset_id=dataset.id,
                     )
 
-                logger.info(f"Created dataset: {self.dataset_name} with {len(examples)} examples")
+                logger.info(
+                    f"Created dataset: {self.dataset_name} with {len(examples)} examples"
+                )
             else:
                 logger.info(f"Dataset {self.dataset_name} already exists")
         except Exception as e:
@@ -116,15 +118,15 @@ class LangSmithEvaluator:
             reference_outputs = example.outputs
 
             # FIX: Check if keys exist
-            question = inputs.get('question', '')
-            student_answer = outputs.get('answer', '')
-            ground_truth = reference_outputs.get('answer', '')
+            question = inputs.get("question", "")
+            student_answer = outputs.get("answer", "")
+            ground_truth = reference_outputs.get("answer", "")
 
             if not question or not student_answer or not ground_truth:
                 return {
                     "key": "correctness",
                     "score": False,
-                    "comment": "Missing question, answer or ground truth"
+                    "comment": "Missing question, answer or ground truth",
                 }
 
             answers = f"""\
@@ -134,14 +136,14 @@ STUDENT ANSWER: {student_answer}"""
 
             messages = [
                 {"role": "system", "content": self.correctness_instructions},
-                {"role": "user", "content": answers}
+                {"role": "user", "content": answers},
             ]
 
             # Use your existing LLM service
             evaluation_response = await llm_service.create_chat_completion(
                 messages=messages,
                 system_prompt=self.correctness_instructions,
-                temperature=0.1
+                temperature=0.1,
             )
 
             # Parse the response - improved logic
@@ -156,26 +158,26 @@ STUDENT ANSWER: {student_answer}"""
                 ground_truth_lower = ground_truth.lower()
                 student_answer_lower = student_answer.lower()
 
-                key_phrases = [phrase for phrase in ground_truth_lower.split() if len(phrase) > 3]
+                key_phrases = [
+                    phrase for phrase in ground_truth_lower.split() if len(phrase) > 3
+                ]
                 if not key_phrases:
                     score = True
                 else:
-                    matches = sum(1 for phrase in key_phrases if phrase in student_answer_lower)
+                    matches = sum(
+                        1 for phrase in key_phrases if phrase in student_answer_lower
+                    )
                     score = matches / len(key_phrases) > 0.6
 
             return {
                 "key": "correctness",
                 "score": score,
-                "comment": evaluation_response[:500]  # Limit comment length
+                "comment": evaluation_response[:500],  # Limit comment length
             }
 
         except Exception as e:
             logger.error(f"Error in correctness evaluator: {e}")
-            return {
-                "key": "correctness",
-                "score": False,
-                "comment": f"Error: {str(e)}"
-            }
+            return {"key": "correctness", "score": False, "comment": f"Error: {str(e)}"}
 
     async def relevance_evaluator(self, run, example) -> dict:
         """Simple relevance evaluator - FIXED VERSION"""
@@ -184,14 +186,14 @@ STUDENT ANSWER: {student_answer}"""
             inputs = run.inputs
             outputs = run.outputs
 
-            question = inputs.get('question', '').lower()
-            answer = outputs.get('answer', '').lower()
+            question = inputs.get("question", "").lower()
+            answer = outputs.get("answer", "").lower()
 
             if not question or not answer:
                 return {
                     "key": "relevance",
                     "score": False,
-                    "comment": "Missing question or answer"
+                    "comment": "Missing question or answer",
                 }
 
             # Check if answer contains question keywords
@@ -205,16 +207,12 @@ STUDENT ANSWER: {student_answer}"""
             return {
                 "key": "relevance",
                 "score": score,
-                "comment": f"Question keywords matched: {score}"
+                "comment": f"Question keywords matched: {score}",
             }
 
         except Exception as e:
             logger.error(f"Error in relevance evaluator: {e}")
-            return {
-                "key": "relevance",
-                "score": False,
-                "comment": f"Error: {str(e)}"
-            }
+            return {"key": "relevance", "score": False, "comment": f"Error: {str(e)}"}
 
     async def run_rag_pipeline(self, inputs: dict) -> dict:
         """Run RAG pipeline for evaluation"""
@@ -230,7 +228,7 @@ STUDENT ANSWER: {student_answer}"""
                     "sources": result.get("sources", []),
                     "tokens_used": result.get("tokens_used", 0),
                     "response_time": result.get("response_time", 0),
-                    "cached": result.get("cached", False)
+                    "cached": result.get("cached", False),
                 }
 
         except Exception as e:
@@ -255,9 +253,9 @@ STUDENT ANSWER: {student_answer}"""
                 metadata={
                     "version": "1.0.0",
                     "timestamp": datetime.utcnow().isoformat(),
-                    "model": get_settings().CLAUDE_MODEL
+                    "model": get_settings().CLAUDE_MODEL,
                 },
-                max_concurrency=1  # Reduced concurrency for stability
+                max_concurrency=1,  # Reduced concurrency for stability
             )
 
             logger.info("Evaluation completed!")
@@ -280,46 +278,65 @@ STUDENT ANSWER: {student_answer}"""
                     "total_examples": 0,
                     "correctness": {"true_count": 0, "false_count": 0, "accuracy": 0},
                     "relevance": {"true_count": 0, "false_count": 0, "accuracy": 0},
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.utcnow().isoformat(),
                 }
 
-            correctness_scores = [r for r in results_list if hasattr(r, 'evaluator_name') and r.evaluator_name == "correctness_evaluator"]
-            relevance_scores = [r for r in results_list if hasattr(r, 'evaluator_name') and r.evaluator_name == "relevance_evaluator"]
+            correctness_scores = [
+                r
+                for r in results_list
+                if hasattr(r, "evaluator_name")
+                and r.evaluator_name == "correctness_evaluator"
+            ]
+            relevance_scores = [
+                r
+                for r in results_list
+                if hasattr(r, "evaluator_name")
+                and r.evaluator_name == "relevance_evaluator"
+            ]
 
             # Calculate stats
             total_examples = len(correctness_scores)
 
-            correctness_true = sum(1 for r in correctness_scores if getattr(r, 'score', False) is True)
-            correctness_false = sum(1 for r in correctness_scores if getattr(r, 'score', False) is False)
-            correctness_accuracy = correctness_true / total_examples if total_examples > 0 else 0
+            correctness_true = sum(
+                1 for r in correctness_scores if getattr(r, "score", False) is True
+            )
+            correctness_false = sum(
+                1 for r in correctness_scores if getattr(r, "score", False) is False
+            )
+            correctness_accuracy = (
+                correctness_true / total_examples if total_examples > 0 else 0
+            )
 
-            relevance_true = sum(1 for r in relevance_scores if getattr(r, 'score', False) is True)
-            relevance_false = sum(1 for r in relevance_scores if getattr(r, 'score', False) is False)
-            relevance_accuracy = relevance_true / total_examples if total_examples > 0 else 0
+            relevance_true = sum(
+                1 for r in relevance_scores if getattr(r, "score", False) is True
+            )
+            relevance_false = sum(
+                1 for r in relevance_scores if getattr(r, "score", False) is False
+            )
+            relevance_accuracy = (
+                relevance_true / total_examples if total_examples > 0 else 0
+            )
 
             stats = {
                 "total_examples": total_examples,
                 "correctness": {
                     "true_count": correctness_true,
                     "false_count": correctness_false,
-                    "accuracy": correctness_accuracy
+                    "accuracy": correctness_accuracy,
                 },
                 "relevance": {
                     "true_count": relevance_true,
                     "false_count": relevance_false,
-                    "accuracy": relevance_accuracy
+                    "accuracy": relevance_accuracy,
                 },
-                "timestamp": datetime.utcnow().isoformat()
+                "timestamp": datetime.utcnow().isoformat(),
             }
 
             return stats
 
         except Exception as e:
             logger.error(f"Error calculating evaluation stats: {e}")
-            return {
-                "error": str(e),
-                "timestamp": datetime.utcnow().isoformat()
-            }
+            return {"error": str(e), "timestamp": datetime.utcnow().isoformat()}
 
 
 # Global evaluator instance

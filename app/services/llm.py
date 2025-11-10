@@ -20,10 +20,7 @@ class LLMService:
     Сервис для работы с LLM через LangChain и OpenAI эмбеддингами
     """
 
-    def __init__(
-        self,
-        enable_langsmith: bool = False
-    ):
+    def __init__(self, enable_langsmith: bool = False):
         """
         Инициализация сервиса
 
@@ -184,13 +181,16 @@ class LLMService:
                 "provider": "langchain-anthropic",
                 "model": settings.CLAUDE_MODEL,
                 "max_tokens": settings.MAX_RESPONSE_TOKENS,
-                "temperature": settings.LLM_TEMPERATURE
+                "temperature": settings.LLM_TEMPERATURE,
             },
             "embeddings": self.embedding_service.get_model_info(),
             "langsmith": {
                 "enabled": self.enable_langsmith,
-                "project": os.getenv("LANGCHAIN_PROJECT", "smarttask-faq")
-                if self.enable_langsmith else None
+                "project": (
+                    os.getenv("LANGCHAIN_PROJECT", "smarttask-faq")
+                    if self.enable_langsmith
+                    else None
+                ),
             },
         }
 

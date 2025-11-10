@@ -30,16 +30,16 @@ class DocumentProcessor:
             length_function=len,
             separators=[
                 "\n\n",  # Двойной перенос строки (абзацы)
-                "\n",    # Одиночный перенос строки
-                ". ",     # Точка с пробелом (предложения)
-                "! ",     # Восклицательный знак с пробелом
-                "? ",     # Вопросительный знак с пробелом
-                "; ",     # Точка с запятой с пробелом
-                ": ",     # Двоеточие с пробелом
-                ", ",     # Запятая с пробелом
-                " ",      # Пробел (слова)
-                ""        # Пустая строка (символы)
-            ]
+                "\n",  # Одиночный перенос строки
+                ". ",  # Точка с пробелом (предложения)
+                "! ",  # Восклицательный знак с пробелом
+                "? ",  # Вопросительный знак с пробелом
+                "; ",  # Точка с запятой с пробелом
+                ": ",  # Двоеточие с пробелом
+                ", ",  # Запятая с пробелом
+                " ",  # Пробел (слова)
+                "",  # Пустая строка (символы)
+            ],
         )
 
     def load_pdf(self, filepath: str) -> str:
@@ -70,7 +70,9 @@ class DocumentProcessor:
             logger.info(f"Loaded {len(reader.pages)} pages from {filepath}")
 
             # Собираем финальный текст
-            final_text = "\n\n".join(text_parts)  # Используем двойные переносы для разделения абзацев
+            final_text = "\n\n".join(
+                text_parts
+            )  # Используем двойные переносы для разделения абзацев
             del text_parts  # Освобождаем память
             gc.collect()
 
@@ -156,11 +158,15 @@ class DocumentProcessor:
 
         try:
             chunks = self.text_splitter.split_text(text)
-            logger.debug(f"Split text into {len(chunks)} chunks using RecursiveCharacterTextSplitter")
+            logger.debug(
+                f"Split text into {len(chunks)} chunks using RecursiveCharacterTextSplitter"
+            )
 
             # Логируем информацию о чанках для отладки
             for i, chunk in enumerate(chunks[:3]):  # Первые 3 чанка
-                logger.debug(f"Chunk {i+1}: {len(chunk)} chars, preview: {chunk[:100]}...")
+                logger.debug(
+                    f"Chunk {i+1}: {len(chunk)} chars, preview: {chunk[:100]}..."
+                )
 
             if len(chunks) > 3:
                 logger.debug(f"... and {len(chunks) - 3} more chunks")
@@ -168,7 +174,9 @@ class DocumentProcessor:
             return chunks
 
         except Exception as e:
-            logger.error(f"Error splitting text with RecursiveCharacterTextSplitter: {e}")
+            logger.error(
+                f"Error splitting text with RecursiveCharacterTextSplitter: {e}"
+            )
             # Fallback на базовое разбиение
             return self._chunk_text_fallback(text)
 
@@ -186,7 +194,7 @@ class DocumentProcessor:
             return []
 
         # Простое разбиение по предложениям с ограничением длины
-        sentences = re.split(r'[.!?]+', text)
+        sentences = re.split(r"[.!?]+", text)
         sentences = [s.strip() for s in sentences if s.strip()]
 
         chunks = []

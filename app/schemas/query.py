@@ -11,7 +11,9 @@ from pydantic import BaseModel, Field
 class QueryRequest(BaseModel):
     """Запрос с вопросом"""
 
-    question: str = Field(..., min_length=1, max_length=1000, description="Вопрос пользователя")
+    question: str = Field(
+        ..., min_length=1, max_length=1000, description="Вопрос пользователя"
+    )
     session_id: Optional[str] = Field(
         None, max_length=255, description="ID сессии для отслеживания"
     )
